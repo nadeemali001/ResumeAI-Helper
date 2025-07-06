@@ -132,33 +132,29 @@ ResumeAI-Helper/
 ├── utils.py               # Utility functions and AI integration
 ├── requirements.txt       # Python dependencies
 ├── README.md             # Project documentation
-├── Dockerfile            # Docker configuration
-├── .dockerignore         # Docker ignore file
+├── .streamlit/           # Streamlit configuration
+│   └── config.toml       # App configuration
 ├── .gitignore           # Git ignore file
 └── venv/                # Virtual environment (not in repo)
 ```
 
-## 🐳 Docker Deployment
+## 🚀 Local Development
 
-### Build and Run with Docker
+### Run Locally with Streamlit
 
-1. **Build the Docker image**
+1. **Start the application**
    ```bash
-   docker build -t resumeai-helper .
+   streamlit run app.py
    ```
 
-2. **Run the container**
-   ```bash
-   docker run -p 8501:8501 resumeai-helper
-   ```
-
-3. **Access the application**
+2. **Access the application**
    - Open `http://localhost:8501` in your browser
 
 ### Environment Variables
 You can set the Google Gemini API key as an environment variable:
 ```bash
-docker run -p 8501:8501 -e GEMINI_API_KEY=your_api_key_here resumeai-helper
+export GEMINI_API_KEY=your_api_key_here
+streamlit run app.py
 ```
 
 ## 🚀 Deployment Options
@@ -205,14 +201,14 @@ docker run -p 8501:8501 -e GEMINI_API_KEY=your_api_key_here resumeai-helper
 - Full access to all features
 - Requires local Python environment
 
-### Docker Deployment
-- Containerized deployment for production
-- Consistent environment across platforms
-- Easy deployment to cloud platforms
+### Local Development
+- Run directly with Streamlit for development and testing
+- Full access to all features
+- Requires local Python environment
 
 ### Other Cloud Platforms
 The app can also be deployed to:
-- **Heroku**: Using Docker deployment
+- **Heroku**: Using traditional deployment
 - **Google Cloud Run**: Container-based deployment
 - **AWS ECS**: Container orchestration
 - **Azure Container Instances**: Cloud container service
