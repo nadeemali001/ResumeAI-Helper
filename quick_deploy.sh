@@ -57,16 +57,16 @@ git add .
 
 # Initial commit
 echo "💾 Creating initial commit..."
-git commit -m "Initial deployment of ResumeAI-Helper"
+git commit -m "Initial deployment of ResumeAI-Helper with Google Gemini"
 
 # Add remote
 echo "🔗 Adding Hugging Face remote..."
-git remote set-url origin https://<user_name>:<token>@huggingface.co/spaces/Nadeemali001/ResumeAI.git
+git remote add origin "https://huggingface.co/spaces/$USERNAME/$SPACE_NAME"
 
 # Push to Hugging Face
 echo "🚀 Pushing to Hugging Face..."
 echo "You may be prompted for your Hugging Face credentials..."
-git push origin main
+git push -u origin main
 
 echo ""
 echo "🎉 Deployment completed!"
@@ -74,11 +74,14 @@ echo ""
 echo "📋 Next Steps:"
 echo "1. Go to: $SPACE_URL"
 echo "2. Wait for the build to complete (may take 5-10 minutes)"
-echo "3. Add your HF_TOKEN in the Space settings:"
+echo "3. Add your GEMINI_API_KEY in the Space settings:"
 echo "   - Go to Settings > Repository secrets"
-echo "   - Add secret: HF_TOKEN"
-echo "   - Value: Your Hugging Face API token (starts with hf_)"
+echo "   - Add secret: GEMINI_API_KEY"
+echo "   - Value: Your Google Gemini API key (starts with AIza...)"
 echo "4. Test your app!"
+echo ""
+echo "🔑 To get your Google Gemini API key:"
+echo "Visit: https://makersuite.google.com/app/apikey"
 echo ""
 echo "🔧 To update your app later:"
 echo "cd $DEPLOY_DIR"

@@ -1,104 +1,148 @@
-# 🚀 Deploying ResumeAI-Helper to Hugging Face Spaces
+# 🚀 Deploying ResumeAI-Helper
 
-This guide will help you deploy your ResumeAI-Helper app to Hugging Face Spaces for free online access.
+This guide will help you deploy your ResumeAI-Helper app to various cloud platforms.
 
 ## 📋 Prerequisites
 
-1. **Hugging Face Account**: Sign up at [huggingface.co](https://huggingface.co)
+1. **Google Gemini API Key**: Get your API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
 2. **Git**: Make sure you have Git installed
-3. **Hugging Face Token**: Get your API token from [settings/tokens](https://huggingface.co/settings/tokens)
+3. **Docker** (optional): For containerized deployment
 
-## 🐳 Deployment Steps
+## 🐳 Docker Deployment
 
-### Step 1: Create a Hugging Face Space
+### Local Docker Deployment
 
-1. Go to [Hugging Face Spaces](https://huggingface.co/spaces)
-2. Click **"Create new Space"**
-3. Fill in the details:
-   - **Owner**: Your username
-   - **Space name**: `resume-ai-helper` (or your preferred name)
-   - **License**: Choose appropriate license (MIT recommended)
-   - **SDK**: Select **"Docker"**
-   - **Hardware**: Choose **"CPU"** (free tier)
-4. Click **"Create Space"**
+1. **Build the Docker image**
+   ```bash
+   docker build -t resumeai-helper .
+   ```
 
-### Step 2: Clone the Space Repository
+2. **Run the container**
+   ```bash
+   docker run -p 8501:8501 -e GEMINI_API_KEY=your_api_key_here resumeai-helper
+   ```
 
-```bash
-# Replace with your actual space URL
-git clone https://huggingface.co/spaces/YOUR_USERNAME/resume-ai-helper
-cd resume-ai-helper
-```
+3. **Access the application**
+   - Open `http://localhost:8501` in your browser
 
-### Step 3: Copy Your App Files
+## ☁️ Cloud Platform Deployment
 
-Copy all your app files to the cloned directory:
+### Option 1: Streamlit Cloud (Recommended)
 
-```bash
-# Copy from your local project
-cp -r /path/to/your/ResumeAI-Helper/* .
-```
+1. **Push to GitHub**
+   ```bash
+   git add .
+   git commit -m "Initial commit"
+   git push origin main
+   ```
 
-**Required files:**
-- `app.py` - Main Streamlit application
-- `utils.py` - Utility functions
-- `requirements.txt` - Python dependencies
-- `Dockerfile` - Docker configuration
-- `.dockerignore` - Docker ignore rules
+2. **Deploy on Streamlit Cloud**
+   - Go to [share.streamlit.io](https://share.streamlit.io)
+   - Connect your GitHub repository
+   - Set the path to `app.py`
+   - Add your Google Gemini API key as a secret
 
-### Step 4: Configure Hugging Face Token
+3. **Configure Secrets**
+   - In Streamlit Cloud dashboard, go to "Secrets"
+   - Add: `GEMINI_API_KEY = "your_api_key_here"`
 
-For the app to work with Hugging Face models, you need to set up your API token:
+### Option 2: Hugging Face Spaces
 
-1. **Option A: Environment Variable (Recommended)**
-   - Go to your Space settings
-   - Add environment variable: `HF_TOKEN`
-   - Value: Your Hugging Face API token (starts with `hf_`)
+1. **Create a Space**
+   - Go to [Hugging Face Spaces](https://huggingface.co/spaces)
+   - Click "Create new Space"
+   - Choose "Docker" SDK
+   - Set hardware to "CPU" (free tier)
 
-2. **Option B: Secrets (Alternative)**
-   - In your Space settings, go to "Repository secrets"
-   - Add secret: `HF_TOKEN`
-   - Value: Your Hugging Face API token
+2. **Configure Environment Variables**
+   - In Space settings, add: `GEMINI_API_KEY`
+   - Value: Your Google Gemini API key
 
-### Step 5: Deploy
+3. **Deploy**
+   ```bash
+   git clone https://huggingface.co/spaces/YOUR_USERNAME/resume-ai-helper
+   cd resume-ai-helper
+   # Copy your app files
+   git add .
+   git commit -m "Initial deployment"
+   git push
+   ```
 
-```bash
-# Add all files
-git add .
+### Option 3: Google Cloud Run
 
-# Commit changes
-git commit -m "Initial deployment of ResumeAI-Helper"
+1. **Enable Cloud Run API**
+   ```bash
+   gcloud services enable run.googleapis.com
+   ```
 
-# Push to Hugging Face
-git push
-```
+2. **Build and deploy**
+   ```bash
+   gcloud run deploy resumeai-helper \
+     --source . \
+     --platform managed \
+     --region us-central1 \
+     --allow-unauthenticated \
+     --set-env-vars GEMINI_API_KEY=your_api_key_here
+   ```
 
-### Step 6: Monitor Deployment
+### Option 4: Heroku
 
-1. Go to your Space page on Hugging Face
-2. Watch the build logs
-3. Wait for status to change from "Building" to "Running"
+1. **Create Heroku app**
+   ```bash
+   heroku create your-app-name
+   ```
+
+2. **Set environment variables**
+   ```bash
+   heroku config:set GEMINI_API_KEY=your_api_key_here
+   ```
+
+3. **Deploy**
+   ```bash
+   git push heroku main
+   ```
 
 ## 🔧 Configuration
 
 ### Environment Variables
 
-You can set these in your Space settings:
+Set these in your deployment platform:
 
-- `HF_TOKEN`: Your Hugging Face API token
-- `STREAMLIT_SERVER_PORT`: 7860 (default)
+- `GEMINI_API_KEY`: Your Google Gemini API key (required)
+- `STREAMLIT_SERVER_PORT`: 8501 (default)
 - `STREAMLIT_SERVER_ADDRESS`: 0.0.0.0 (default)
 
-### Hardware Options
+### Google Gemini API Key Setup
 
-- **CPU (Free)**: 16GB RAM, 2 vCPU - Good for basic usage
-- **GPU (Paid)**: For faster inference with larger models
+1. **Get API Key**
+   - Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
+   - Create a new API key
+   - Copy the key (starts with "AIza...")
+
+2. **Set in Deployment**
+   - Add as environment variable: `GEMINI_API_KEY`
+   - Or add to Streamlit secrets for Streamlit Cloud
 
 ## 🌐 Accessing Your App
 
-Once deployed, your app will be available at:
+### Streamlit Cloud
+```
+https://your-app-name.streamlit.app
+```
+
+### Hugging Face Spaces
 ```
 https://YOUR_USERNAME-resume-ai-helper.hf.space
+```
+
+### Google Cloud Run
+```
+https://resumeai-helper-xxxxx-uc.a.run.app
+```
+
+### Heroku
+```
+https://your-app-name.herokuapp.com
 ```
 
 ## 🔍 Troubleshooting
@@ -106,30 +150,30 @@ https://YOUR_USERNAME-resume-ai-helper.hf.space
 ### Common Issues
 
 1. **Build Fails**
-   - Check the build logs in your Space
+   - Check build logs
    - Ensure all dependencies are in `requirements.txt`
    - Verify Dockerfile syntax
 
 2. **App Won't Start**
-   - Check if port 7860 is exposed
+   - Check if port 8501 is exposed
    - Verify Streamlit command in Dockerfile
    - Check environment variables
 
-3. **Hugging Face API Errors**
-   - Verify your API token is correct
-   - Check token permissions (needs 'read' access)
-   - Try different models if one fails
+3. **Google Gemini API Errors**
+   - Verify your API key is correct
+   - Check API key permissions
+   - Ensure you have sufficient quota
 
 4. **Memory Issues**
-   - Upgrade to paid tier for more RAM
-   - Use smaller models
+   - Upgrade to paid tier for more resources
    - Optimize your app code
+   - Use smaller file uploads
 
 ### Getting Help
 
-- **Hugging Face Documentation**: [docs.huggingface.co](https://docs.huggingface.co)
-- **Spaces Documentation**: [huggingface.co/docs/hub/spaces](https://huggingface.co/docs/hub/spaces)
-- **Community Forum**: [discuss.huggingface.co](https://discuss.huggingface.co)
+- **Streamlit Documentation**: [docs.streamlit.io](https://docs.streamlit.io)
+- **Google Gemini Documentation**: [ai.google.dev](https://ai.google.dev)
+- **Docker Documentation**: [docs.docker.com](https://docs.docker.com)
 
 ## 🎯 Next Steps
 
@@ -142,10 +186,17 @@ After successful deployment:
 
 ## 📝 Notes
 
-- **Free tier limits**: 16GB RAM, 2 vCPU, no GPU
-- **Auto-sleep**: Free spaces sleep after inactivity
+- **Free tier limits**: Vary by platform
+- **Auto-sleep**: Some platforms sleep after inactivity
 - **Custom domains**: Available with paid plans
-- **Collaboration**: You can add collaborators to your Space
+- **Collaboration**: Most platforms support team collaboration
+
+## 🔒 Security Considerations
+
+- **API Key Security**: Never commit API keys to version control
+- **Environment Variables**: Use platform secrets/environment variables
+- **HTTPS**: All major platforms provide HTTPS by default
+- **Access Control**: Configure appropriate access controls
 
 ---
 

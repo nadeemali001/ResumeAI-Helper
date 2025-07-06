@@ -7,149 +7,224 @@ sdk: docker
 app_port: 7860
 ---
 
-# Resume & Job Description Analyzer
+# 📄 ResumeAI Helper
 
-A Streamlit web application for analyzing resumes against job descriptions using local AI models via Ollama.
+An AI-powered resume analysis and cover letter generation tool built with Streamlit and Google Gemini.
 
-## Features
+## 🚀 Features
 
-- 📄 **File Upload Support**: Upload resumes and job descriptions in PDF, DOCX, or TXT formats
-- 📝 **Text Input**: Option to enter job description text directly
-- 🤖 **Dual AI Support**: Choose between local Ollama models or cloud-based Hugging Face models
-- 🎯 **ATS Score Analysis**: Detailed ATS optimization analysis with improvement recommendations
-- 📊 **Interactive Dashboard**: Visual metrics and detailed breakdowns
-- 🎯 **Smart Recommendations**: Personalized suggestions for resume improvement
-- 📝 **Cover Letter Generation**: Generate personalized cover letters with different tones
-- 📊 **Visualizations**: Word clouds and skills comparison charts
-- 💾 **Session History**: Save and review previous analyses
-- 📥 **Download Reports**: Export analysis results, ATS reports, and cover letters
-- 🔒 **Privacy Options**: Use local models for privacy or cloud models for convenience
+- **📤 File Upload**: Support for PDF, DOCX, and TXT files
+- **🤖 AI Analysis**: Comprehensive resume vs job description analysis using Google Gemini
+- **🎯 ATS Optimization**: Detailed ATS score analysis and improvement recommendations
+- **📝 Cover Letter Generation**: AI-powered cover letter generation with tone selection
+- **📊 Visualizations**: Word clouds and skills analysis charts
+- **📥 Download Reports**: Export analysis results and cover letters in multiple formats
+- **📚 Analysis History**: Save and revisit previous analyses
 
-## Setup
+## 🛠️ Installation
 
-### Local Development
+### Prerequisites
 
 - Python 3.8 or higher
-- pip (Python package installer)
-- Ollama installed and running (see [Ollama Installation Guide](https://ollama.ai)) - **OR** - Hugging Face API token (see [Hugging Face Tokens](https://huggingface.co/settings/tokens))
+- Google Gemini API key
 
-### Cloud Deployment
+### Setup
 
-- Hugging Face account
-- Git installed
-- See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed instructions
-
-### Installation
-
-1. **Clone or download this project**
-
-2. **Create a virtual environment** (recommended):
+1. **Clone the repository**
    ```bash
-   python3 -m venv venv
+   git clone <repository-url>
+   cd ResumeAI-Helper
+   ```
+
+2. **Create a virtual environment**
+   ```bash
+   python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
-3. **Install dependencies**:
+3. **Install dependencies**
    ```bash
    pip install -r requirements.txt
    ```
 
-4. **Choose your AI provider**:
-   
-   **Option A: Local Ollama (Privacy-focused)**
-   ```bash
-   # Download and install Ollama from https://ollama.ai
-   # Then pull a model (e.g., llama3.2):
-   ollama pull llama3.2
-   ```
-   
-   **Option B: Cloud Hugging Face (Convenience-focused)**
-   - Get your API token from [Hugging Face Tokens](https://huggingface.co/settings/tokens)
-   - No local installation required
+4. **Get Google Gemini API Key**
+   - Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
+   - Create a new API key
+   - Copy the API key (starts with "AIza...")
 
-## Running the Application
+## 🚀 Usage
 
-1. **Activate the virtual environment** (if not already activated):
-   ```bash
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-2. **Run the Streamlit app**:
+1. **Start the application**
    ```bash
    streamlit run app.py
    ```
 
-3. **Open your browser** and navigate to the URL shown in the terminal (usually `http://localhost:8501`)
+2. **Open your browser**
+   - Navigate to `http://localhost:8501`
 
-## Usage
+3. **Configure Google Gemini**
+   - Enter your Google Gemini API key in the sidebar
+   - The app will validate the key automatically
 
-1. **Choose AI Provider**: Select between local Ollama models or cloud-based Hugging Face models
-2. **Configure API**: For Hugging Face, enter your API token; for Ollama, ensure it's running locally
-3. **Select Model**: Choose your preferred AI model from the available options
-4. **Upload Resume**: Use the file uploader to upload your resume (PDF, DOCX, or TXT)
-5. **Add Job Description**: Either upload a job description file or enter the text directly
-6. **Analyze**: Click the "Analyze" button to process the documents
-7. **Review Results**: Explore the analysis results, metrics, and recommendations
-8. **ATS Score Analysis**: Use the ATS Score tab to get detailed optimization recommendations
-9. **Generate Cover Letter**: Create personalized cover letters with different tones
-10. **Download Reports**: Export analysis results, ATS reports, and cover letters
+4. **Upload Documents**
+   - Upload your resume (PDF, DOCX, TXT)
+   - Upload job description or enter text directly
+   - Extract text from uploaded files
 
-## Project Structure
+5. **Run Analysis**
+   - Click "Analyze Resume vs Job Description"
+   - View comprehensive AI feedback
+   - Check ATS optimization scores
+   - Generate personalized cover letters
+
+## 📋 Features Overview
+
+### 🤖 AI Analysis
+- **Overall Match Score**: Percentage match between resume and job description
+- **Skills Analysis**: Detailed breakdown of found, missing, and additional skills
+- **Keyword Matching**: Identifies missing important keywords
+- **Formatting Issues**: Points out potential formatting problems
+- **Improvement Recommendations**: Actionable suggestions for improvement
+
+### 🎯 ATS Optimization
+- **ATS Score**: Overall compatibility with Applicant Tracking Systems
+- **Keyword Match Score**: Percentage of job keywords found in resume
+- **Formatting Score**: ATS-friendly formatting assessment
+- **Content Score**: Content quality and relevance evaluation
+- **Optimization Tips**: Specific actions to improve ATS performance
+
+### 📝 Cover Letter Generation
+- **Tone Selection**: Choose from formal, confident, or enthusiastic tones
+- **Personalized Content**: AI-generated content based on your resume and job description
+- **Download Options**: Export as TXT or Markdown files
+- **Copy to Clipboard**: Easy copying for immediate use
+
+### 📊 Visualizations
+- **Word Clouds**: Visual representation of keywords in resume and job description
+- **Skills Bar Chart**: Comparison of skills between resume and job description
+- **Progress Bars**: Visual representation of scores and metrics
+
+### 📚 Analysis History
+- **Save Analyses**: Automatically saves each analysis to session history
+- **Load Previous**: Revisit and compare previous analyses
+- **Re-run Analysis**: Update analysis with new data
+- **Clear History**: Manage saved analyses
+
+## 🔧 Configuration
+
+### Google Gemini API Key
+The app requires a Google Gemini API key for AI features:
+
+1. Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Create a new API key
+3. Enter the key in the app sidebar
+4. The key is used locally and not stored permanently
+
+### Supported File Formats
+- **Resume**: PDF, DOCX, TXT
+- **Job Description**: PDF, DOCX, TXT (or direct text input)
+
+## 📁 Project Structure
 
 ```
 ResumeAI-Helper/
-├── app.py              # Main Streamlit application
-├── utils.py            # Utility functions for text extraction and AI analysis
-├── requirements.txt    # Python dependencies
-├── Dockerfile          # Docker configuration for deployment
-├── .dockerignore       # Docker ignore rules
-├── deploy.sh           # Automated deployment script
-├── DEPLOYMENT.md       # Detailed deployment instructions
-├── README.md          # Project documentation
-└── venv/              # Virtual environment (created during setup)
+├── app.py                 # Main Streamlit application
+├── utils.py               # Utility functions and AI integration
+├── requirements.txt       # Python dependencies
+├── README.md             # Project documentation
+├── Dockerfile            # Docker configuration
+├── .dockerignore         # Docker ignore file
+├── .gitignore           # Git ignore file
+└── venv/                # Virtual environment (not in repo)
 ```
 
-## Development
+## 🐳 Docker Deployment
 
-This application supports both local and cloud-based AI models. To extend it:
+### Build and Run with Docker
 
-- Add support for more Ollama models
-- Implement batch processing for multiple resumes
-- Add database storage for analysis history
-- Implement user authentication and session management
-- Add export functionality for analysis reports
-
-## Troubleshooting
-
-### Hugging Face API Issues
-
-If you encounter problems with Hugging Face API:
-
-1. **Run diagnostics script:**
+1. **Build the Docker image**
    ```bash
-   python hf_diagnostics.py
+   docker build -t resumeai-helper .
    ```
 
-2. **Common issues and solutions:**
-   - **401 Unauthorized**: Check token format (must start with `hf_`) and validity
-   - **403 Forbidden**: Ensure token has 'read' permissions for inference
-   - **429 Rate Limited**: Wait and retry, or upgrade to Pro account
-   - **500 Server Error**: Check [Hugging Face status](https://status.huggingface.co)
+2. **Run the container**
+   ```bash
+   docker run -p 8501:8501 resumeai-helper
+   ```
 
-3. **Get help:**
-   - [Hugging Face Community Forum](https://discuss.huggingface.co)
-   - [Hugging Face Documentation](https://huggingface.co/docs)
-   - [Service Status Page](https://status.huggingface.co)
+3. **Access the application**
+   - Open `http://localhost:8501` in your browser
 
-## Technologies Used
+### Environment Variables
+You can set the Google Gemini API key as an environment variable:
+```bash
+docker run -p 8501:8501 -e GEMINI_API_KEY=your_api_key_here resumeai-helper
+```
 
-- **Streamlit**: Web application framework
-- **Ollama**: Local AI model inference
-- **Hugging Face Hub**: Cloud-based AI model inference
-- **PyMuPDF**: PDF text extraction
-- **python-docx**: DOCX text extraction
-- **Pandas**: Data manipulation and analysis
+## 🚀 Deployment Options
 
-## License
+### Local Development
+- Run directly with Streamlit for development and testing
+- Full access to all features
+- Requires local Python environment
 
-This project is open source and available under the MIT License. 
+### Docker Deployment
+- Containerized deployment for production
+- Consistent environment across platforms
+- Easy deployment to cloud platforms
+
+### Cloud Platforms
+The app can be deployed to various cloud platforms:
+- **Streamlit Cloud**: Direct deployment from GitHub
+- **Heroku**: Using Docker deployment
+- **Google Cloud Run**: Container-based deployment
+- **AWS ECS**: Container orchestration
+- **Azure Container Instances**: Cloud container service
+
+## 🔒 Security and Privacy
+
+- **Local Processing**: All file processing happens locally
+- **API Key Security**: Google Gemini API key is used only for AI requests
+- **No Data Storage**: Files and analysis results are not permanently stored
+- **Session-based**: Data is only stored in browser session
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📝 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🙏 Acknowledgments
+
+- **Streamlit**: For the amazing web app framework
+- **Google Gemini**: For powerful AI capabilities
+- **PyMuPDF**: For PDF text extraction
+- **python-docx**: For DOCX file processing
+- **Plotly**: For interactive visualizations
+- **WordCloud**: For keyword visualization
+
+## 📞 Support
+
+If you encounter any issues or have questions:
+
+1. Check the troubleshooting section in the app
+2. Review the Google Gemini API documentation
+3. Open an issue on GitHub
+4. Check the app's built-in help and guidance
+
+## 🔄 Updates
+
+Stay updated with the latest features and improvements:
+- Watch the repository for updates
+- Check the changelog for version history
+- Follow the project for announcements
+
+---
+
+**Built with ❤️ using Streamlit and Google Gemini** 

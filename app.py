@@ -1,8 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-from utils import extract_text_from_file, get_file_info, validate_file_type, analyze_resume_vs_jd, analyze_ats_score, generate_cover_letter, get_hf_client, HF_AVAILABLE
-from config import get_error_info, should_use_fallback, get_recommended_provider, DEFAULT_MODELS, ERROR_MESSAGES
+from utils import extract_text_from_file, get_file_info, validate_file_type, analyze_resume_vs_jd, analyze_ats_score, generate_cover_letter
 
 # Set page config
 st.set_page_config(
@@ -107,7 +106,7 @@ with st.sidebar:
     st.markdown("""
     <div style="text-align: center; padding: 1rem 0;">
         <h1 style="font-size: 1.8rem; color: #1f77b4; margin-bottom: 0.5rem;">📄 ResumeAI Helper</h1>
-        <p style="color: #6c757d; font-size: 0.9rem;">AI-Powered Resume Analysis</p>
+        <p style="color: #6c757d; font-size: 0.9rem;">AI-Powered Resume Analysis with Google Gemini</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -117,187 +116,27 @@ with st.sidebar:
     st.markdown("""
     1. **Upload** your resume and job description
     2. **Extract** text from uploaded files
-    3. **Analyze** with AI for insights
+    3. **Analyze** with Google Gemini AI
     4. **Generate** a cover letter
     """)
     
     st.divider()
     
-    # AI Model Settings
-    st.markdown("### 🤖 AI Model Settings")
+    # Google Gemini Settings
+    st.markdown("### 🤖 Google Gemini Settings")
     
-    # AI Provider Selection with warnings about HF issues
-    if should_use_fallback():
-        st.warning("⚠️ **WIDESPREAD HUGGING FACE API ISSUES DETECTED**")
-        st.error("🚨 Hugging Face is experiencing widespread 401/404 errors affecting many users. Ollama is recommended.")
-        
-        ai_provider = st.radio(
-            "Choose AI Provider",
-            options=["🖥️ Local (Ollama) - RECOMMENDED", "☁️ Cloud (Hugging Face) - MAY NOT WORK"],
-            index=0,  # Default to Ollama when HF has issues
-            help="Due to widespread Hugging Face API issues, Ollama is recommended."
-        )
-        
-        use_hf = ai_provider == "☁️ Cloud (Hugging Face) - MAY NOT WORK"
+    # Google Gemini API Key
+    gemini_api_key = st.text_input(
+        "Google Gemini API Key",
+        type="password",
+        help="Get your API key from https://makersuite.google.com/app/apikey",
+        placeholder="AIza..."
+    )
+    
+    if gemini_api_key:
+        st.success("✅ Google Gemini API key provided")
     else:
-        ai_provider = st.radio(
-            "Choose AI Provider",
-            options=["☁️ Cloud (Hugging Face)", "🖥️ Local (Ollama)"],
-            index=0,  # Default to Hugging Face for cloud deployment
-            help="For cloud deployment, Hugging Face is recommended. Ollama requires local installation."
-        )
-        
-        use_hf = ai_provider == "☁️ Cloud (Hugging Face)"
-    
-    # Info for cloud deployment
-    if use_hf:
-        if should_use_fallback():
-            st.error("☁️ **Cloud Mode (EXPERIMENTAL):** Hugging Face has known API issues. May not work.")
-        else:
-            st.info("☁️ **Cloud Mode:** Using Hugging Face models for online deployment.")
-    else:
-        st.success("🖥️ **Local Mode:** Using Ollama for reliable local AI processing.")
-    
-    if use_hf:
-        # Hugging Face Settings
-        st.markdown("#### ☁️ Hugging Face Settings")
-        
-        # Check if HF is available
-        if not HF_AVAILABLE:
-            st.error("❌ Hugging Face Hub not installed. Run: `pip install huggingface_hub`")
-        else:
-            # HF API Token
-            hf_token = st.text_input(
-                "Hugging Face API Token",
-                type="password",
-                help="Get your token from https://huggingface.co/settings/tokens",
-                placeholder="hf_..."
-            )
-            
-            # Popular HF models from config
-            hf_models = DEFAULT_MODELS["huggingface"]
-            
-            selected_model = st.selectbox(
-                "Select Hugging Face Model",
-                options=hf_models,
-                index=0,
-                help="Choose a Hugging Face model for analysis (may not work due to API issues)"
-            )
-            
-            # Test HF connection
-            if hf_token and st.button("🔍 Test HF Connection", use_container_width=True):
-                try:
-                    with st.spinner("Testing Hugging Face connection..."):
-                        hf_client = get_hf_client(hf_token)
-                        if hf_client:
-                            st.success("✅ Hugging Face connection successful!")
-                        else:
-                            st.error("❌ Failed to connect to Hugging Face")
-                except Exception as e:
-                    st.error(f"❌ Hugging Face connection failed: {str(e)}")
-            
-            # Troubleshooting guide
-            with st.expander("🔧 Hugging Face Troubleshooting Guide", expanded=False):
-                st.markdown("""
-                ### Common Hugging Face API Issues
-                
-                #### ❌ 401 Unauthorized Error (WIDESPREAD ISSUE)
-                **Symptoms:** "Invalid credentials in Authorization header"
-                
-                **Current Status:** This is a known issue affecting many users since June 2025. Even newly generated tokens are failing.
-                
-                **Solutions:**
-                1. **Use Ollama instead** - This is the most reliable solution
-                2. **Check token format** - Must start with `hf_`
-                3. **Verify token validity** - Get a new token from [Hugging Face Tokens](https://huggingface.co/settings/tokens)
-                4. **Check account status** - Ensure your account is active and not suspended
-                5. **Token permissions** - Make sure token has 'read' access for inference
-                6. **Contact support** - Email website@huggingface.co with your username
-                
-                #### ❌ 403 Forbidden Error
-                **Symptoms:** "Token doesn't have required permissions"
-                
-                **Solutions:**
-                1. **Update token permissions** - Add 'read' access for inference
-                2. **Check model access** - Some models require special access
-                3. **Verify account type** - Free accounts have usage limits
-                
-                #### ❌ 429 Rate Limited
-                **Symptoms:** "Too many requests"
-                
-                **Solutions:**
-                1. **Wait and retry** - Rate limits reset automatically
-                2. **Upgrade account** - Pro accounts have higher limits
-                3. **Reduce request frequency** - Space out your API calls
-                
-                #### ❌ 500 Server Error
-                **Symptoms:** "Internal Server Error"
-                
-                **Solutions:**
-                1. **Try again later** - Temporary service issue
-                2. **Check Hugging Face status** - Visit [status.huggingface.co](https://status.huggingface.co)
-                3. **Use different model** - Some models may be temporarily unavailable
-                
-                ### Getting Help
-                - **Community Forum:** [discuss.huggingface.co](https://discuss.huggingface.co)
-                - **Documentation:** [huggingface.co/docs](https://huggingface.co/docs)
-                - **Status Page:** [status.huggingface.co](https://status.huggingface.co)
-                """)
-            
-            st.info(f"Selected model: **{selected_model}**")
-    else:
-        # Ollama Settings
-        st.markdown("#### 🖥️ Ollama Settings")
-        
-        # Default model options from config
-        default_models = DEFAULT_MODELS["ollama"]
-        
-        # Try to get available models from Ollama
-        try:
-            import ollama
-            models_response = ollama.list()
-            available_models = [model.model for model in models_response.models]
-            model_options = available_models if available_models else default_models
-        except Exception as e:
-            model_options = default_models
-            st.warning(f"⚠️ Could not connect to Ollama: {str(e)}")
-        
-        selected_model = st.selectbox(
-            "Select Ollama Model",
-            options=model_options,
-            index=0,
-            help="Choose the AI model to use for analysis"
-        ) or "llama3.1"
-        
-        st.info(f"Selected model: **{selected_model}**")
-    
-    # Model status check
-    if st.button("🔍 Check Model Status", use_container_width=True):
-        try:
-            import ollama
-            with st.spinner("Checking Ollama connection..."):
-                models_response = ollama.list()
-            
-            st.success("✅ Ollama is running!")
-            st.write("**Available models:**")
-            for model in models_response.models:
-                if model.size:
-                    size_mb = model.size / (1024 * 1024)
-                    if size_mb > 1024:
-                        size_str = f"{size_mb/1024:.1f} GB"
-                    else:
-                        size_str = f"{size_mb:.0f} MB"
-                    st.write(f"• **{model.model}** ({size_str})")
-                else:
-                    st.write(f"• **{model.model}** (size unknown)")
-                
-        except Exception as e:
-            st.error(f"❌ Ollama connection failed: {str(e)}")
-            st.info("💡 **Troubleshooting:**")
-            st.info("1. Install Ollama: https://ollama.ai")
-            st.info("2. Start: `ollama serve`")
-            st.info("3. Check: `ollama list`")
-            st.info("4. Pull: `ollama pull llama3.1`")
+        st.warning("⚠️ Please provide your Google Gemini API key to use AI features")
     
     st.divider()
     
@@ -373,9 +212,9 @@ with st.sidebar:
     # App Info
     st.markdown("### ℹ️ About")
     st.markdown("""
-    **ResumeAI Helper** uses local AI models to analyze resumes against job descriptions and generate personalized cover letters.
+    **ResumeAI Helper** uses Google Gemini AI to analyze resumes against job descriptions and generate personalized cover letters.
     
-    Built with Streamlit and Ollama.
+    Built with Streamlit and Google Gemini.
     """)
 
 # Main content
@@ -398,155 +237,124 @@ with tab1:
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown("### 📋 Resume Upload")
+        st.markdown("### 📄 Resume Upload")
         resume_file = st.file_uploader(
-            "Upload your resume (PDF, DOCX, TXT)",
+            "Upload your resume",
             type=['pdf', 'docx', 'txt'],
-            help="Upload your resume in PDF, DOCX, or TXT format"
+            help="Supported formats: PDF, DOCX, TXT"
         )
         
         if resume_file:
-            st.success(f"✅ Resume uploaded: {resume_file.name}")
-            file_size = resume_file.size
-            if file_size > 1024 * 1024:
-                size_str = f"{file_size / (1024 * 1024):.1f} MB"
-            elif file_size > 1024:
-                size_str = f"{file_size / 1024:.1f} KB"
-            else:
-                size_str = f"{file_size} bytes"
-            st.info(f"📁 File size: {size_str}")
+            file_info = get_file_info(resume_file)
+            st.success(f"✅ **{file_info['name']}** uploaded successfully!")
+            st.info(f"📊 **File size:** {file_info['size']:,} bytes")
             
-            # Auto-extract text when file is uploaded
-            try:
-                with st.spinner("📄 Automatically extracting text from resume..."):
+            # Auto-extract text on upload
+            if st.button("🔍 Extract Text", use_container_width=True, type="primary"):
+                with st.spinner("Extracting text from resume..."):
                     extracted_text = extract_text_from_file(resume_file)
                     if extracted_text:
                         st.session_state.resume_text = extracted_text
-                        st.success("✅ Resume text extracted automatically!")
-                        st.info(f"📊 Extracted {len(extracted_text.split())} words")
+                        st.success("✅ Text extracted successfully!")
+                        st.info(f"📝 **Word count:** {len(extracted_text.split())} words")
+                        st.info(f"📏 **Character count:** {len(extracted_text)} characters")
                     else:
-                        st.error("❌ Failed to extract text from resume.")
-            except Exception as e:
-                st.error(f"❌ Error extracting text: {str(e)}")
-        else:
-            st.info("📝 Please upload your resume")
-
-    with col2:
-        st.markdown("### 💼 Job Description")
-        jd_option = st.radio(
-            "Choose input method:",
-            ["📁 Upload File", "✏️ Enter Text"],
-            horizontal=True
-        )
-        
-        if jd_option == "📁 Upload File":
-            job_file = st.file_uploader(
-                "Upload job description (PDF, DOCX, TXT)",
-                type=['pdf', 'docx', 'txt'],
-                help="Upload the job description in PDF, DOCX, or TXT format"
-            )
+                        st.error("❌ Failed to extract text from resume")
             
-            if job_file:
-                st.success(f"✅ Job description uploaded: {job_file.name}")
-                file_size = job_file.size
-                if file_size > 1024 * 1024:
-                    size_str = f"{file_size / (1024 * 1024):.1f} MB"
-                elif file_size > 1024:
-                    size_str = f"{file_size / 1024:.1f} KB"
-                else:
-                    size_str = f"{file_size} bytes"
-                st.info(f"📁 File size: {size_str}")
-                
-                # Auto-extract text when file is uploaded
-                try:
-                    with st.spinner("📄 Automatically extracting text from job description..."):
-                        extracted_text = extract_text_from_file(job_file)
-                        if extracted_text:
-                            st.session_state.job_text = extracted_text
-                            st.success("✅ Job description text extracted automatically!")
-                            st.info(f"📊 Extracted {len(extracted_text.split())} words")
-                        else:
-                            st.error("❌ Failed to extract text from job description.")
-                except Exception as e:
-                    st.error(f"❌ Error extracting text: {str(e)}")
-            else:
-                st.info("📝 Please upload the job description")
-                
-            job_text = None
+            # Show extracted text in expander
+            if st.session_state.resume_text:
+                with st.expander("📄 View Extracted Resume Text", expanded=False):
+                    st.text_area(
+                        "Resume Text",
+                        value=st.session_state.resume_text,
+                        height=200,
+                        disabled=True
+                    )
         else:
-            job_text = st.text_area(
-                "Enter job description",
-                height=200,
-                placeholder="Paste the job description here...",
-                help="Enter or paste the job description text",
-                key="job_text_input"
-            )
-            
-            # Auto-process text when entered
-            if job_text and job_text.strip():
-                st.session_state.job_text = job_text.strip()
-                word_count = len(job_text.split())
-                char_count = len(job_text)
-                st.success("✅ Job description text processed automatically!")
-                st.info(f"📊 **{word_count} words** | **{char_count} characters**")
-            elif not job_text or not job_text.strip():
-                st.session_state.job_text = ""
-                st.info("📝 Please enter the job description")
-                
-            job_file = None
-
-    # Analysis button
-    st.divider()
-    col1, col2, col3 = st.columns([1, 2, 1])
+            st.info("📄 No resume uploaded yet")
     
     with col2:
-        analyze_button = st.button(
-            "🚀 Analyze Resume & Job Description",
-            type="primary",
-            use_container_width=True,
-            disabled=not (st.session_state.resume_text and st.session_state.job_text)
+        st.markdown("### 💼 Job Description")
+        
+        # Option to upload job description file
+        jd_file = st.file_uploader(
+            "Upload job description (optional)",
+            type=['pdf', 'docx', 'txt'],
+            help="Upload a job description file, or enter text below"
         )
+        
+        if jd_file:
+            file_info = get_file_info(jd_file)
+            st.success(f"✅ **{file_info['name']}** uploaded successfully!")
+            st.info(f"📊 **File size:** {file_info['size']:,} bytes")
+            
+            # Auto-extract text on upload
+            if st.button("🔍 Extract Text from File", use_container_width=True, type="primary"):
+                with st.spinner("Extracting text from job description..."):
+                    extracted_text = extract_text_from_file(jd_file)
+                    if extracted_text:
+                        st.session_state.job_text = extracted_text
+                        st.success("✅ Text extracted successfully!")
+                        st.info(f"📝 **Word count:** {len(extracted_text.split())} words")
+                        st.info(f"📏 **Character count:** {len(extracted_text)} characters")
+                    else:
+                        st.error("❌ Failed to extract text from job description")
+        
+        # Text input for job description
+        jd_text_input = st.text_area(
+            "Or enter job description text directly",
+            height=200,
+            placeholder="Paste the job description here...",
+            help="Enter the job description text directly or upload a file above"
+        )
+        
+        # Auto-process text input
+        if jd_text_input and jd_text_input != st.session_state.job_text:
+            st.session_state.job_text = jd_text_input
+            st.success("✅ Job description text updated!")
+            st.info(f"📝 **Word count:** {len(jd_text_input.split())} words")
+        
+        # Show current job description text
+        if st.session_state.job_text:
+            with st.expander("💼 View Job Description Text", expanded=False):
+                st.text_area(
+                    "Job Description Text",
+                    value=st.session_state.job_text,
+                    height=200,
+                    disabled=True
+                )
+        else:
+            st.info("💼 No job description provided yet")
 
-    # Display extracted text
+    # Analysis Button
+    st.divider()
+    st.markdown('<h2 class="section-header">🤖 AI Analysis</h2>', unsafe_allow_html=True)
+    
+    # Check if API key is provided
+    if not gemini_api_key:
+        st.error("❌ Google Gemini API key is required for AI analysis.")
+        st.info("💡 Please enter your API key in the sidebar to continue.")
+        analyze_button = False
+    else:
+        analyze_button = st.button("🚀 Analyze Resume vs Job Description", use_container_width=True, type="primary")
+    
+    # Display current texts
     if st.session_state.resume_text or st.session_state.job_text:
-        st.divider()
-        st.markdown('<h2 class="section-header">📝 Extracted Text Preview</h2>', unsafe_allow_html=True)
+        st.markdown("### 📋 Current Documents")
         
         col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown("### 📄 Resume Preview")
             if st.session_state.resume_text:
-                resume_words = len(st.session_state.resume_text.split())
-                resume_chars = len(st.session_state.resume_text)
-                st.info(f"📊 **{resume_words} words** | **{resume_chars} characters**")
-                
-                with st.expander("📖 View Resume Content", expanded=False):
-                    st.text_area(
-                        "Resume Content",
-                        value=st.session_state.resume_text,
-                        height=300,
-                        key="resume_display",
-                        disabled=True
-                    )
+                st.markdown("**📄 Resume Text:**")
+                st.info(f"✅ {len(st.session_state.resume_text.split())} words, {len(st.session_state.resume_text)} characters")
             else:
-                st.info("📝 No resume text extracted yet")
+                st.info("📝 No resume text available")
         
         with col2:
-            st.markdown("### 💼 Job Description Preview")
             if st.session_state.job_text:
-                jd_words = len(st.session_state.job_text.split())
-                jd_chars = len(st.session_state.job_text)
-                st.info(f"📊 **{jd_words} words** | **{jd_chars} characters**")
-                
-                with st.expander("📖 View Job Description Content", expanded=False):
-                    st.text_area(
-                        "Job Description Content",
-                        value=st.session_state.job_text,
-                        height=300,
-                        key="job_display",
-                        disabled=True
-                    )
+                st.markdown("**💼 Job Description Text:**")
+                st.info(f"✅ {len(st.session_state.job_text.split())} words, {len(st.session_state.job_text)} characters")
             else:
                 st.info("📝 No job description text available")
 
@@ -558,18 +366,10 @@ with tab1:
         if st.session_state.resume_text and st.session_state.job_text:
             try:
                 with st.spinner("🤖 Analyzing resume against job description..."):
-                    # Check if using Hugging Face and if token is provided
-                    if use_hf and not hf_token:
-                        st.error("❌ Hugging Face API token is required for cloud analysis.")
-                        st.info("💡 Please enter your Hugging Face API token in the sidebar, or switch to Ollama (local) mode.")
-                        st.stop()
-                    
                     analysis_results = analyze_resume_vs_jd(
                         st.session_state.resume_text, 
                         st.session_state.job_text, 
-                        selected_model,
-                        use_hf=use_hf,
-                        hf_token=hf_token if use_hf else None
+                        gemini_api_key
                     )
                     st.session_state.analysis_results = analysis_results
                     
@@ -578,7 +378,7 @@ with tab1:
                         st.session_state.resume_text, 
                         st.session_state.job_text, 
                         analysis_results, 
-                        selected_model
+                        "Google Gemini"
                     )
                 
                 st.success("✅ Analysis completed successfully!")
@@ -587,33 +387,10 @@ with tab1:
             except Exception as e:
                 error_msg = str(e)
                 st.error(f"❌ Analysis failed: {error_msg}")
-                
-                # Provide specific troubleshooting based on the error
-                if "Hugging Face client not available" in error_msg or "401" in error_msg or "404" in error_msg:
-                    st.error("🚨 **Hugging Face API Issues Detected**")
-                    st.markdown("""
-                    **This is a known widespread issue affecting many users.**
-                    
-                    **Immediate Solutions:**
-                    1. **Switch to Ollama (Local)** - Most reliable option
-                    2. **Check your token** - Must start with `hf_` and have read permissions
-                    3. **Try different models** - Some models may still work
-                    4. **Wait and retry** - Service may be temporarily unavailable
-                    
-                    **For more help:**
-                    - [Hugging Face Status](https://status.huggingface.co)
-                    - [Community Forum](https://discuss.huggingface.co)
-                    """)
-                else:
-                    st.info("💡 **General Troubleshooting:**")
-                    if use_hf:
-                        st.info("• Check your Hugging Face API token")
-                        st.info("• Verify token has 'read' permissions")
-                        st.info("• Try switching to Ollama (local) mode")
-                    else:
-                        st.info("• Make sure Ollama is running (`ollama serve`)")
-                        st.info("• Check that the selected model is available (`ollama list`)")
-                        st.info("• Try selecting a different model from the sidebar")
+                st.info("💡 **Troubleshooting:**")
+                st.info("• Check your Google Gemini API key")
+                st.info("• Verify the API key has the necessary permissions")
+                st.info("• Ensure both resume and job description texts are provided")
         else:
             st.error("❌ Please ensure both resume and job description texts are available for analysis.")
 
@@ -711,7 +488,7 @@ with tab2:
             # 💡 Improvement Recommendations
             st.markdown("### 💡 Improvement Recommendations")
             improvements = st.session_state.analysis_results.get('improvements', [])
-            if improvements and improvements != ["Please check that Ollama is running and the model is installed. Try running 'ollama list' to see available models."]:
+            if improvements and improvements != ["Please check your Google Gemini API key and ensure the service is available."]:
                 for i, improvement in enumerate(improvements, 1):
                     st.markdown(f"**{i}.** {improvement}")
             else:
@@ -782,686 +559,420 @@ with tab2:
                         st.error(f"❌ {skill}")
                 if len(missing_skills) > 6:
                     st.markdown(f"*... and {len(missing_skills) - 6} more skills missing*")
-            else:
-                st.success("✅ All required skills found in your resume!")
             
             # Display additional skills
             if additional_skills:
-                st.markdown("**🎯 Bonus Skills (Not Required but Valuable):**")
+                st.markdown("**🎯 Additional Skills (Bonus):**")
                 bonus_cols = st.columns(3)
-                for i, skill in enumerate(additional_skills[:6]):  # Show top 6 bonus skills
+                for i, skill in enumerate(additional_skills[:6]):  # Show top 6 additional skills
                     col_idx = i % 3
                     with bonus_cols[col_idx]:
                         st.info(f"🎯 {skill}")
                 if len(additional_skills) > 6:
                     st.markdown(f"*... and {len(additional_skills) - 6} more bonus skills*")
-            
-            st.markdown("""
-            **💡 Tip:** Focus on adding the missing required skills first, then highlight your bonus skills in interviews.
-            """)
-        
-        # Additional Visual Elements
-        st.divider()
-        
-        # Performance Slider for overall assessment
-        st.markdown("### 📊 Overall Performance Assessment")
-        overall_performance = (score + skills_match) / 2
-        st.slider(
-            "Resume Performance Score",
-            min_value=0,
-            max_value=100,
-            value=int(overall_performance),
-            disabled=True,
-            help="Combined score based on match and skills alignment"
-        )
-        
-        # Performance indicator
-        if overall_performance >= 80:
-            st.success("🎉 **Excellent!** Your resume shows strong alignment with the job requirements.")
-        elif overall_performance >= 60:
-            st.info("👍 **Good!** Your resume has good potential with some improvements.")
-        elif overall_performance >= 40:
-            st.warning("⚠️ **Fair.** Consider implementing the suggested improvements.")
-        else:
-            st.error("❌ **Needs Work.** Significant improvements are recommended.")
-        
-        # Visual Analysis Section
-        st.divider()
-        with st.expander("🔍 Visual Analysis", expanded=False):
-            st.markdown("### 📊 Text Analysis Visualizations")
-            
-            # Import visualization functions
-            from utils import create_word_cloud, create_skills_bar_chart
-            
-            # Word Clouds
-            st.markdown("#### ☁️ Word Clouds")
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.markdown("**📄 Resume Keywords**")
-                resume_fig = create_word_cloud(st.session_state.resume_text, "Resume Keywords")
-                st.pyplot(resume_fig, use_container_width=True)
-            
-            with col2:
-                st.markdown("**💼 Job Description Keywords**")
-                jd_fig = create_word_cloud(st.session_state.job_text, "Job Description Keywords")
-                st.pyplot(jd_fig, use_container_width=True)
-            
-            st.markdown("---")
-            
-            # Skills Bar Chart
-            st.markdown("#### 📈 Skills Analysis")
-            st.markdown("**Top 10 skills comparison between resume and job description:**")
-            
-            skills_fig = create_skills_bar_chart(st.session_state.resume_text, st.session_state.job_text)
-            st.plotly_chart(skills_fig, use_container_width=True)
-            
-            # Additional insights
-            st.markdown("**💡 Insights:**")
-            st.markdown("""
-            - **Word Clouds** show the most frequent keywords in each document
-            - **Skills Chart** compares skill mentions between your resume and the job requirements
-            - **Blue bars** = Skills found in your resume
-            - **Orange bars** = Skills mentioned in the job description
-            - **Higher overlap** indicates better skills alignment
-            """)
         
         # Download AI Feedback Report
         st.divider()
         st.markdown("### 📥 Download AI Feedback Report")
         
-        # Create comprehensive feedback report
-        if st.session_state.analysis_results:
-            report_data = st.session_state.analysis_results
-            score = report_data.get('score', 0)
-            skills_match = report_data.get('skills_match', 0)
-            summary = report_data.get('summary', 'No summary available.')
-            improvements = report_data.get('improvements', [])
-            missing_keywords = report_data.get('missing_keywords', [])
-            found_skills = report_data.get('found_skills', [])
-            additional_skills = report_data.get('additional_skills', [])
-            formatting_issues = report_data.get('formatting_issues', [])
-            tone_grammar = report_data.get('tone_grammar', 'No evaluation available.')
-            
-            # Create comprehensive report text
-            report_content = f"""# AI Resume Analysis Report
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Create text report
+            report_text = f"""ResumeAI Helper - AI Analysis Report
+Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
-## 📊 Executive Summary
-**Overall Match Score:** {score}%
-**Skills Match:** {skills_match}%
+OVERALL ASSESSMENT
+==================
+Overall Match Score: {st.session_state.analysis_results.get('score', 0)}%
+Skills Match: {st.session_state.analysis_results.get('skills_match', 0)}%
 
-## 📝 AI Summary
-{summary}
+SUMMARY
+=======
+{st.session_state.analysis_results.get('summary', 'No summary available.')}
 
-## 🎯 Detailed Analysis
+MISSING KEYWORDS
+===============
+{chr(10).join([f"• {keyword}" for keyword in st.session_state.analysis_results.get('missing_keywords', [])])}
 
-### Overall Performance
-- **Match Score:** {score}%
-- **Skills Alignment:** {skills_match}%
-- **Performance Level:** {'Excellent' if score >= 80 else 'Good' if score >= 60 else 'Fair' if score >= 40 else 'Needs Work'}
+IMPROVEMENT RECOMMENDATIONS
+==========================
+{chr(10).join([f"{i+1}. {improvement}" for i, improvement in enumerate(st.session_state.analysis_results.get('improvements', []))])}
 
-### Skills Analysis
-**Required Skills Found:** {len(found_skills)} skills identified in your resume
-**Missing Skills:** {len(missing_keywords)} skills need to be added
-**Additional Skills:** {len(additional_skills)} bonus skills detected
+TONE & GRAMMAR EVALUATION
+=========================
+{st.session_state.analysis_results.get('tone_grammar', 'No evaluation available.')}
 
-#### ✅ Skills Found in Your Resume:
-{chr(10).join([f"- {skill}" for skill in found_skills[:10]])}
-
-#### ❌ Missing Skills to Add:
-{chr(10).join([f"- {skill}" for skill in missing_keywords[:10]])}
-
-#### 🎯 Bonus Skills (Not Required but Valuable):
-{chr(10).join([f"- {skill}" for skill in additional_skills[:10]])}
-
-### Formatting & Presentation
-**Tone & Grammar Evaluation:** {tone_grammar}
-
-#### ⚠️ Formatting Issues Identified:
-{chr(10).join([f"- {issue}" for issue in formatting_issues]) if formatting_issues else "- No formatting issues identified"}
-
-## 💡 Improvement Recommendations
-{chr(10).join([f"{i+1}. {improvement}" for i, improvement in enumerate(improvements)])}
-
-## 📈 Action Plan
-1. **Priority 1:** Add missing required skills to your resume
-2. **Priority 2:** Address formatting issues identified
-3. **Priority 3:** Highlight your bonus skills in interviews
-4. **Priority 4:** Implement the specific improvement suggestions above
-
----
-*Generated by ResumeAI Helper - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*
+FORMATTING ISSUES
+=================
+{chr(10).join([f"• {issue}" for issue in st.session_state.analysis_results.get('formatting_issues', [])])}
 """
             
-            # Download buttons for the report
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.download_button(
-                    label="📄 Save Feedback Report (TXT)",
-                    data=report_content,
-                    file_name=f"resume_analysis_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
-                    mime="text/plain",
-                    help="Download the complete AI feedback report as a text file",
-                    use_container_width=True,
-                    icon="📄"
-                )
-            
-            with col2:
-                # Create markdown version with better formatting
-                markdown_report = f"""# AI Resume Analysis Report
+            st.download_button(
+                label="📄 Download as TXT",
+                data=report_text,
+                file_name=f"resume_analysis_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                mime="text/plain",
+                use_container_width=True
+            )
+        
+        with col2:
+            # Create markdown report
+            report_md = f"""# ResumeAI Helper - AI Analysis Report
+*Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*
 
-## 📊 Executive Summary
-**Overall Match Score:** {score}%
-**Skills Match:** {skills_match}%
+## Overall Assessment
+- **Overall Match Score:** {st.session_state.analysis_results.get('score', 0)}%
+- **Skills Match:** {st.session_state.analysis_results.get('skills_match', 0)}%
 
-## 📝 AI Summary
-{summary}
+## Summary
+{st.session_state.analysis_results.get('summary', 'No summary available.')}
 
-## 🎯 Detailed Analysis
+## Missing Keywords
+{chr(10).join([f"- {keyword}" for keyword in st.session_state.analysis_results.get('missing_keywords', [])])}
 
-### Overall Performance
-- **Match Score:** {score}%
-- **Skills Alignment:** {skills_match}%
-- **Performance Level:** {'Excellent' if score >= 80 else 'Good' if score >= 60 else 'Fair' if score >= 40 else 'Needs Work'}
+## Improvement Recommendations
+{chr(10).join([f"{i+1}. {improvement}" for i, improvement in enumerate(st.session_state.analysis_results.get('improvements', []))])}
 
-### Skills Analysis
-**Required Skills Found:** {len(found_skills)} skills identified in your resume
-**Missing Skills:** {len(missing_keywords)} skills need to be added
-**Additional Skills:** {len(additional_skills)} bonus skills detected
+## Tone & Grammar Evaluation
+{st.session_state.analysis_results.get('tone_grammar', 'No evaluation available.')}
 
-#### ✅ Skills Found in Your Resume:
-{chr(10).join([f"- {skill}" for skill in found_skills[:10]])}
-
-#### ❌ Missing Skills to Add:
-{chr(10).join([f"- {skill}" for skill in missing_keywords[:10]])}
-
-#### 🎯 Bonus Skills (Not Required but Valuable):
-{chr(10).join([f"- {skill}" for skill in additional_skills[:10]])}
-
-### Formatting & Presentation
-**Tone & Grammar Evaluation:** {tone_grammar}
-
-#### ⚠️ Formatting Issues Identified:
-{chr(10).join([f"- {issue}" for issue in formatting_issues]) if formatting_issues else "- No formatting issues identified"}
-
-## 💡 Improvement Recommendations
-{chr(10).join([f"{i+1}. {improvement}" for i, improvement in enumerate(improvements)])}
-
-## 📈 Action Plan
-1. **Priority 1:** Add missing required skills to your resume
-2. **Priority 2:** Address formatting issues identified
-3. **Priority 3:** Highlight your bonus skills in interviews
-4. **Priority 4:** Implement the specific improvement suggestions above
-
----
-*Generated by ResumeAI Helper - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*
+## Formatting Issues
+{chr(10).join([f"- {issue}" for issue in st.session_state.analysis_results.get('formatting_issues', [])])}
 """
-                
-                st.download_button(
-                    label="📋 Save Feedback Report (MD)",
-                    data=markdown_report,
-                    file_name=f"resume_analysis_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
-                    mime="text/markdown",
-                    help="Download the complete AI feedback report as a markdown file",
-                    use_container_width=True,
-                    icon="📋"
-                )
             
+            st.download_button(
+                label="📝 Download as Markdown",
+                data=report_md,
+                file_name=f"resume_analysis_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
+                mime="text/markdown",
+                use_container_width=True
+            )
+    
     else:
-        st.markdown('<h2 class="section-header">🤖 AI Feedback</h2>', unsafe_allow_html=True)
-        st.info("📝 Please complete the analysis in the 'Upload & Analyze' tab to view AI feedback here.")
+        st.markdown('<h2 class="section-header">🤖 AI Analysis Results</h2>', unsafe_allow_html=True)
+        st.info("📊 No analysis results available. Please run an analysis in the 'Upload & Analyze' tab first.")
 
 # Tab 3: ATS Score
 with tab3:
-    st.markdown('<h2 class="section-header">🎯 ATS Score Analysis</h2>', unsafe_allow_html=True)
-    
-    if st.session_state.resume_text and st.session_state.job_text:
-        # Check if ATS analysis already exists in session state
-        if 'ats_results' not in st.session_state:
-            st.session_state.ats_results = None
+    if st.session_state.analysis_results:
+        st.markdown('<h2 class="section-header">🎯 ATS Optimization Analysis</h2>', unsafe_allow_html=True)
         
-        # ATS Analysis button
-        col1, col2, col3 = st.columns([1, 2, 1])
+        # ATS Score Analysis
+        ats_results = analyze_ats_score(
+            st.session_state.resume_text, 
+            st.session_state.job_text,
+            gemini_api_key
+        )
+        
+        # Display ATS metrics
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            ats_score = ats_results.get('ats_score', 0)
+            st.metric(
+                label="🎯 Overall ATS Score",
+                value=f"{ats_score}%",
+                delta=f"{ats_score - 50}%" if ats_score > 50 else f"{ats_score - 50}%"
+            )
+            st.progress(ats_score / 100, text=f"ATS Progress: {ats_score}%")
         
         with col2:
-            ats_analyze_button = st.button(
-                "🎯 Analyze ATS Score",
-                type="primary",
-                use_container_width=True,
-                help="Analyze your resume for ATS optimization"
+            keyword_match = ats_results.get('keyword_match_score', 0)
+            st.metric(
+                label="🔑 Keyword Match",
+                value=f"{keyword_match}%",
+                delta=f"{keyword_match - 50}%" if keyword_match > 50 else f"{keyword_match - 50}%"
             )
+            st.progress(keyword_match / 100, text=f"Keyword Progress: {keyword_match}%")
         
-        # Perform ATS analysis
-        if ats_analyze_button:
-            try:
-                with st.spinner("🎯 Analyzing ATS compatibility..."):
-                    ats_results = analyze_ats_score(
-                        st.session_state.resume_text, 
-                        st.session_state.job_text, 
-                        selected_model,
-                        use_hf=use_hf,
-                        hf_token=hf_token if use_hf else None
-                    )
-                    st.session_state.ats_results = ats_results
-                
-                st.success("✅ ATS analysis completed successfully!")
-                
-            except Exception as e:
-                st.error(f"❌ Error during ATS analysis: {str(e)}")
+        with col3:
+            formatting_score = ats_results.get('formatting_score', 0)
+            st.metric(
+                label="📝 Formatting Score",
+                value=f"{formatting_score}%",
+                delta=f"{formatting_score - 50}%" if formatting_score > 50 else f"{formatting_score - 50}%"
+            )
+            st.progress(formatting_score / 100, text=f"Formatting Progress: {formatting_score}%")
         
-        # Display ATS results
-        if st.session_state.ats_results:
-            ats_data = st.session_state.ats_results
+        with col4:
+            content_score = ats_results.get('content_score', 0)
+            st.metric(
+                label="📄 Content Score",
+                value=f"{content_score}%",
+                delta=f"{content_score - 50}%" if content_score > 50 else f"{content_score - 50}%"
+            )
+            st.progress(content_score / 100, text=f"Content Progress: {content_score}%")
+        
+        st.divider()
+        
+        # ATS Summary
+        st.markdown("### 📋 ATS Summary")
+        ats_summary = ats_results.get('summary', 'No ATS summary available.')
+        if ats_summary and not ats_summary.startswith("ATS analysis failed"):
+            st.info(f"**{ats_summary}**")
+        else:
+            st.warning("ATS summary not available.")
+        
+        st.divider()
+        
+        # Detailed ATS Analysis
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Missing Keywords
+            st.markdown("### ❌ Missing Keywords")
+            missing_keywords = ats_results.get('missing_keywords', [])
+            if missing_keywords and missing_keywords != ["analysis_failed"]:
+                for keyword in missing_keywords:
+                    st.error(f"❌ {keyword}")
+            else:
+                st.success("✅ No missing keywords identified!")
             
-            # ATS Score Overview
-            st.markdown("### 📊 ATS Score Overview")
+            # Formatting Issues
+            st.markdown("### ⚠️ Formatting Issues")
+            formatting_issues = ats_results.get('formatting_issues', [])
+            if formatting_issues and formatting_issues != ["analysis_failed"]:
+                for i, issue in enumerate(formatting_issues, 1):
+                    st.markdown(f"**{i}.** {issue}")
+            else:
+                st.success("✅ No formatting issues identified!")
             
-            col1, col2, col3, col4 = st.columns(4)
+            # Content Issues
+            st.markdown("### 📄 Content Issues")
+            content_issues = ats_results.get('content_issues', [])
+            if content_issues and content_issues != ["analysis_failed"]:
+                for i, issue in enumerate(content_issues, 1):
+                    st.markdown(f"**{i}.** {issue}")
+            else:
+                st.success("✅ No content issues identified!")
+        
+        with col2:
+            # ATS Optimization Tips
+            st.markdown("### 💡 ATS Optimization Tips")
+            optimization_tips = ats_results.get('ats_optimization_tips', [])
+            if optimization_tips and optimization_tips != ["Please check your Google Gemini API key and ensure the service is available."]:
+                for i, tip in enumerate(optimization_tips, 1):
+                    st.markdown(f"**{i}.** {tip}")
+            else:
+                st.info("No optimization tips available at this time.")
             
-            with col1:
-                st.metric(
-                    label="🎯 Overall ATS Score",
-                    value=f"{ats_data.get('ats_score', 0)}%",
-                    delta=None,
-                    help="Overall compatibility with ATS systems"
-                )
+            # Keyword Suggestions
+            st.markdown("### 🔑 Keyword Suggestions")
+            keyword_suggestions = ats_results.get('keyword_suggestions', [])
+            if keyword_suggestions and keyword_suggestions != ["analysis_failed"]:
+                for keyword in keyword_suggestions:
+                    st.info(f"🔑 {keyword}")
+            else:
+                st.info("No keyword suggestions available.")
             
-            with col2:
-                st.metric(
-                    label="🔑 Keyword Match",
-                    value=f"{ats_data.get('keyword_match_score', 0)}%",
-                    delta=None,
-                    help="Percentage of job keywords found in resume"
-                )
-            
-            with col3:
-                st.metric(
-                    label="📝 Formatting Score",
-                    value=f"{ats_data.get('formatting_score', 0)}%",
-                    delta=None,
-                    help="ATS-friendly formatting and structure"
-                )
-            
-            with col4:
-                st.metric(
-                    label="📄 Content Score",
-                    value=f"{ats_data.get('content_score', 0)}%",
-                    delta=None,
-                    help="Content quality and relevance"
-                )
-            
-            # Progress bars for visual representation
-            st.markdown("### 📈 Detailed Scores")
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.markdown("**🎯 Overall ATS Score**")
-                ats_score = ats_data.get('ats_score', 0)
-                st.progress(ats_score / 100, text=f"{ats_score}%")
-                
-                st.markdown("**🔑 Keyword Match Score**")
-                keyword_score = ats_data.get('keyword_match_score', 0)
-                st.progress(keyword_score / 100, text=f"{keyword_score}%")
-            
-            with col2:
-                st.markdown("**📝 Formatting Score**")
-                format_score = ats_data.get('formatting_score', 0)
-                st.progress(format_score / 100, text=f"{format_score}%")
-                
-                st.markdown("**📄 Content Score**")
-                content_score = ats_data.get('content_score', 0)
-                st.progress(content_score / 100, text=f"{content_score}%")
-            
-            # ATS Summary
-            st.markdown("### 📋 ATS Analysis Summary")
-            summary = ats_data.get('summary', 'No summary available.')
-            st.info(summary)
-            
-            # Detailed Analysis Sections
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.markdown("### ❌ Missing Keywords")
-                missing_keywords = ats_data.get('missing_keywords', [])
-                if missing_keywords:
-                    for keyword in missing_keywords:
-                        st.error(f"🔴 {keyword}")
-                else:
-                    st.success("✅ No missing keywords identified!")
-                
-                st.markdown("### ⚠️ Formatting Issues")
-                formatting_issues = ats_data.get('formatting_issues', [])
-                if formatting_issues:
-                    for issue in formatting_issues:
-                        st.warning(f"⚠️ {issue}")
-                else:
-                    st.success("✅ No formatting issues identified!")
-                
-                st.markdown("### 📝 Content Issues")
-                content_issues = ats_data.get('content_issues', [])
-                if content_issues:
-                    for issue in content_issues:
-                        st.error(f"🔴 {issue}")
-                else:
-                    st.success("✅ No content issues identified!")
-            
-            with col2:
-                st.markdown("### 💡 ATS Optimization Tips")
-                optimization_tips = ats_data.get('ats_optimization_tips', [])
-                if optimization_tips:
-                    for i, tip in enumerate(optimization_tips, 1):
-                        st.success(f"💡 **{i}.** {tip}")
-                
-                st.markdown("### 🔑 Keyword Suggestions")
-                keyword_suggestions = ats_data.get('keyword_suggestions', [])
-                if keyword_suggestions:
-                    for keyword in keyword_suggestions:
-                        st.info(f"🔑 {keyword}")
-                
-                st.markdown("### 🏗️ Structure Recommendations")
-                structure_recs = ats_data.get('structure_recommendations', [])
-                if structure_recs:
-                    for rec in structure_recs:
-                        st.info(f"🏗️ {rec}")
-            
-            # ATS Best Practices Guide
-            st.markdown("### 📚 ATS Best Practices Guide")
-            
-            with st.expander("🎯 How to Improve Your ATS Score", expanded=False):
-                st.markdown("""
-                #### **1. Use Standard Headings** 📋
-                - **Work Experience** (not "Professional Background")
-                - **Education** (not "Academic Background")
-                - **Skills** (not "Core Competencies")
-                - **Certifications** (not "Professional Development")
-                
-                #### **2. Choose the Right Keywords** 🔑
-                - **Extract keywords** from the job description
-                - **Use exact phrases** when possible
-                - **Include variations** of important terms
-                - **Place keywords strategically** in experience descriptions
-                
-                #### **3. Avoid Graphics and Tables** 🚫
-                - **No images, logos, or graphics**
-                - **No tables or complex formatting**
-                - **No headers/footers** (important info gets lost)
-                - **Use simple bullet points** instead
-                
-                #### **4. Customize for Each Job** 🎯
-                - **Tailor keywords** to each specific position
-                - **Highlight relevant experience** for the role
-                - **Use industry-specific terminology**
-                - **Match the job description language**
-                
-                #### **5. Proofread and Test** ✅
-                - **Check for spelling and grammar errors**
-                - **Test with ATS simulators** (Jobscan, Resume Worded)
-                - **Ensure consistent formatting**
-                - **Verify all contact information is visible**
-                
-                #### **6. File Format Matters** 📄
-                - **Use .docx or .pdf** (avoid .txt)
-                - **Ensure compatibility** with major ATS systems
-                - **Keep file size reasonable** (< 2MB)
-                - **Use standard fonts** (Arial, Calibri, Times New Roman)
-                """)
-            
-            # Download ATS Report
-            st.divider()
-            st.markdown("### 📥 Download ATS Analysis Report")
-            
-            # Create comprehensive ATS report
-            ats_report_content = f"""# ATS Optimization Analysis Report
+            # Structure Recommendations
+            st.markdown("### 🏗️ Structure Recommendations")
+            structure_recs = ats_results.get('structure_recommendations', [])
+            if structure_recs and structure_recs != ["analysis_failed"]:
+                for i, rec in enumerate(structure_recs, 1):
+                    st.markdown(f"**{i}.** {rec}")
+            else:
+                st.info("No structure recommendations available.")
+        
+        # Download ATS Report
+        st.divider()
+        st.markdown("### 📥 Download ATS Report")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Create ATS text report
+            ats_report_text = f"""ResumeAI Helper - ATS Optimization Report
+Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
-## 📊 ATS Score Summary
-**Overall ATS Score:** {ats_data.get('ats_score', 0)}%
-**Keyword Match Score:** {ats_data.get('keyword_match_score', 0)}%
-**Formatting Score:** {ats_data.get('formatting_score', 0)}%
-**Content Score:** {ats_data.get('content_score', 0)}%
+ATS SCORES
+==========
+Overall ATS Score: {ats_results.get('ats_score', 0)}%
+Keyword Match Score: {ats_results.get('keyword_match_score', 0)}%
+Formatting Score: {ats_results.get('formatting_score', 0)}%
+Content Score: {ats_results.get('content_score', 0)}%
 
-## 📋 Analysis Summary
-{ats_data.get('summary', 'No summary available.')}
+SUMMARY
+=======
+{ats_results.get('summary', 'No summary available.')}
 
-## 🎯 Detailed Analysis
+MISSING KEYWORDS
+===============
+{chr(10).join([f"• {keyword}" for keyword in ats_results.get('missing_keywords', [])])}
 
-### Missing Keywords
-{chr(10).join([f"- {keyword}" for keyword in ats_data.get('missing_keywords', [])]) if ats_data.get('missing_keywords') else "- No missing keywords identified"}
+FORMATTING ISSUES
+=================
+{chr(10).join([f"• {issue}" for issue in ats_results.get('formatting_issues', [])])}
 
-### Formatting Issues
-{chr(10).join([f"- {issue}" for issue in ats_data.get('formatting_issues', [])]) if ats_data.get('formatting_issues') else "- No formatting issues identified"}
+CONTENT ISSUES
+==============
+{chr(10).join([f"• {issue}" for issue in ats_results.get('content_issues', [])])}
 
-### Content Issues
-{chr(10).join([f"- {issue}" for issue in ats_data.get('content_issues', [])]) if ats_data.get('content_issues') else "- No content issues identified"}
+ATS OPTIMIZATION TIPS
+=====================
+{chr(10).join([f"{i+1}. {tip}" for i, tip in enumerate(ats_results.get('ats_optimization_tips', []))])}
 
-## 💡 Optimization Recommendations
+KEYWORD SUGGESTIONS
+===================
+{chr(10).join([f"• {keyword}" for keyword in ats_results.get('keyword_suggestions', [])])}
 
-### ATS Optimization Tips
-{chr(10).join([f"{i+1}. {tip}" for i, tip in enumerate(ats_data.get('ats_optimization_tips', []))])}
-
-### Keyword Suggestions
-{chr(10).join([f"- {keyword}" for keyword in ats_data.get('keyword_suggestions', [])])}
-
-### Structure Recommendations
-{chr(10).join([f"- {rec}" for rec in ats_data.get('structure_recommendations', [])])}
-
-## 📚 ATS Best Practices
-
-### 1. Use Standard Headings
-- Work Experience, Education, Skills, Certifications
-- Avoid creative or non-standard section names
-
-### 2. Choose the Right Keywords
-- Extract keywords from job descriptions
-- Use exact phrases when possible
-- Include variations of important terms
-
-### 3. Avoid Graphics and Tables
-- No images, logos, or graphics
-- No tables or complex formatting
-- Use simple bullet points instead
-
-### 4. Customize for Each Job
-- Tailor keywords to each specific position
-- Highlight relevant experience for the role
-- Use industry-specific terminology
-
-### 5. Proofread and Test
-- Check for spelling and grammar errors
-- Test with ATS simulators
-- Ensure consistent formatting
-
-### 6. File Format Matters
-- Use .docx or .pdf format
-- Keep file size reasonable (< 2MB)
-- Use standard fonts (Arial, Calibri, Times New Roman)
-
----
-*Generated by ResumeAI Helper - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*
+STRUCTURE RECOMMENDATIONS
+=========================
+{chr(10).join([f"{i+1}. {rec}" for i, rec in enumerate(ats_results.get('structure_recommendations', []))])}
 """
             
-            # Download buttons for ATS report
-            col1, col2 = st.columns(2)
+            st.download_button(
+                label="📄 Download ATS Report (TXT)",
+                data=ats_report_text,
+                file_name=f"ats_optimization_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                mime="text/plain",
+                use_container_width=True
+            )
+        
+        with col2:
+            # Create ATS markdown report
+            ats_report_md = f"""# ResumeAI Helper - ATS Optimization Report
+*Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*
+
+## ATS Scores
+- **Overall ATS Score:** {ats_results.get('ats_score', 0)}%
+- **Keyword Match Score:** {ats_results.get('keyword_match_score', 0)}%
+- **Formatting Score:** {ats_results.get('formatting_score', 0)}%
+- **Content Score:** {ats_results.get('content_score', 0)}%
+
+## Summary
+{ats_results.get('summary', 'No summary available.')}
+
+## Missing Keywords
+{chr(10).join([f"- {keyword}" for keyword in ats_results.get('missing_keywords', [])])}
+
+## Formatting Issues
+{chr(10).join([f"- {issue}" for issue in ats_results.get('formatting_issues', [])])}
+
+## Content Issues
+{chr(10).join([f"- {issue}" for issue in ats_results.get('content_issues', [])])}
+
+## ATS Optimization Tips
+{chr(10).join([f"{i+1}. {tip}" for i, tip in enumerate(ats_results.get('ats_optimization_tips', []))])}
+
+## Keyword Suggestions
+{chr(10).join([f"- {keyword}" for keyword in ats_results.get('keyword_suggestions', [])])}
+
+## Structure Recommendations
+{chr(10).join([f"{i+1}. {rec}" for i, rec in enumerate(ats_results.get('structure_recommendations', []))])}
+"""
             
-            with col1:
-                st.download_button(
-                    label="📄 Save ATS Report (TXT)",
-                    data=ats_report_content,
-                    file_name=f"ats_analysis_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
-                    mime="text/plain",
-                    help="Download the complete ATS analysis report as a text file",
-                    use_container_width=True,
-                    icon="📄"
-                )
-            
-            with col2:
-                st.download_button(
-                    label="📋 Save ATS Report (MD)",
-                    data=ats_report_content,
-                    file_name=f"ats_analysis_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
-                    mime="text/markdown",
-                    help="Download the complete ATS analysis report as a markdown file",
-                    use_container_width=True,
-                    icon="📋"
-                )
+            st.download_button(
+                label="📝 Download ATS Report (MD)",
+                data=ats_report_md,
+                file_name=f"ats_optimization_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
+                mime="text/markdown",
+                use_container_width=True
+            )
     
     else:
-        st.info("📝 Please upload your resume and job description in the 'Upload & Analyze' tab to perform ATS analysis.")
+        st.markdown('<h2 class="section-header">🎯 ATS Optimization Analysis</h2>', unsafe_allow_html=True)
+        st.info("📊 No analysis results available. Please run an analysis in the 'Upload & Analyze' tab first.")
 
 # Tab 4: Cover Letter
 with tab4:
     st.markdown('<h2 class="section-header">📝 Cover Letter Generator</h2>', unsafe_allow_html=True)
     
     if st.session_state.resume_text and st.session_state.job_text:
-        # Cover letter configuration
-        st.markdown("### ⚙️ Cover Letter Settings")
-        
+        # Cover Letter Settings
         col1, col2 = st.columns(2)
         
         with col1:
-            # Tone selection dropdown
-            tone_options = {
-                "formal": "🎩 Formal - Professional and traditional",
-                "confident": "💪 Confident - Strong and assertive", 
-                "enthusiastic": "🚀 Enthusiastic - Energetic and passionate"
-            }
-            
-            selected_tone = st.selectbox(
-                "Choose Cover Letter Tone",
-                options=list(tone_options.keys()),
-                format_func=lambda x: tone_options[x],
-                help="Select the tone that best matches your personality and the company culture"
+            tone = st.selectbox(
+                "Select Tone",
+                options=["formal", "confident", "enthusiastic"],
+                index=0,
+                help="Choose the tone for your cover letter"
             )
-            
-            # Display tone description
-            tone_descriptions = {
-                "formal": "Professional, respectful, and traditional tone focusing on qualifications and experience.",
-                "confident": "Strong, assertive tone demonstrating self-assurance and leadership qualities.",
-                "enthusiastic": "Energetic, passionate tone showing excitement and motivation for the opportunity."
-            }
-            
-            st.info(f"**Selected Tone:** {tone_options[selected_tone].split(' - ')[1]}")
-            st.caption(tone_descriptions[selected_tone])
         
         with col2:
-            # Word count target
-            st.markdown("**📊 Target Length:** ~250 words")
-            st.progress(0, text="Ready to generate")
-            
-            # Model info
-            st.info(f"**🤖 Using Model:** {selected_model}")
-        
-        st.divider()
-        
-        # Generate cover letter button
-        col1, col2, col3 = st.columns([1, 2, 1])
-        
-        with col2:
-            generate_cover_button = st.button(
-                "✍️ Generate Cover Letter",
-                type="primary",
+            generate_cover_letter_button = st.button(
+                "🚀 Generate Cover Letter",
                 use_container_width=True,
-                help=f"Generate a {selected_tone} cover letter based on your resume and job description"
+                type="primary"
             )
         
-        # Generate cover letter when button is clicked
-        if generate_cover_button:
-            try:
-                with st.spinner(f"✍️ Generating {selected_tone} cover letter..."):
-                    cover_letter = generate_cover_letter(
-                        st.session_state.resume_text, 
-                        st.session_state.job_text, 
-                        selected_tone,
-                        selected_model,
-                        use_hf=use_hf,
-                        hf_token=hf_token if use_hf else None
-                    )
-                    st.session_state.cover_letter = cover_letter
-                    st.session_state.cover_letter_tone = selected_tone
-                
-                st.success(f"✅ {selected_tone.capitalize()} cover letter generated successfully!")
-                
-            except Exception as e:
-                st.error(f"❌ Cover letter generation failed: {str(e)}")
-                st.info("💡 Troubleshooting tips:")
-                st.info("• Make sure Ollama is running (`ollama serve`)")
-                st.info("• Check that the selected model is available (`ollama list`)")
-                st.info("• Try selecting a different model from the sidebar")
+        # Generate cover letter
+        if generate_cover_letter_button:
+            if not gemini_api_key:
+                st.error("❌ Google Gemini API key is required for cover letter generation.")
+                st.info("💡 Please enter your API key in the sidebar to continue.")
+            else:
+                try:
+                    with st.spinner("📝 Generating personalized cover letter..."):
+                        cover_letter = generate_cover_letter(
+                            st.session_state.resume_text,
+                            st.session_state.job_text,
+                            tone,
+                            gemini_api_key
+                        )
+                        st.session_state.cover_letter = cover_letter
+                    
+                    st.success("✅ Cover letter generated successfully!")
+                    
+                except Exception as e:
+                    st.error(f"❌ Cover letter generation failed: {str(e)}")
+                    st.info("💡 Please check your Google Gemini API key and try again.")
         
-        # Display cover letter if available
+        # Display generated cover letter
         if st.session_state.cover_letter:
-            st.divider()
             st.markdown("### 📄 Generated Cover Letter")
             
-            # Display tone and word/character count
-            cover_words = len(st.session_state.cover_letter.split())
-            cover_chars = len(st.session_state.cover_letter)
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                st.info(f"📊 **{cover_words} words** | **{cover_chars} characters**")
-            with col2:
-                tone_used = st.session_state.get('cover_letter_tone', 'formal')
-                st.success(f"🎯 **Tone:** {tone_used.capitalize()}")
-            
-            # Display cover letter in text area
-            cover_letter_text = st.text_area(
-                "Cover Letter Content",
+            # Display the cover letter
+            st.text_area(
+                "Cover Letter",
                 value=st.session_state.cover_letter,
                 height=400,
-                key="cover_letter_display",
-                help="Review and edit the generated cover letter as needed"
+                disabled=True
             )
             
-            # Action buttons
-            st.markdown("### 📥 Download Cover Letter")
+            # Copy and download options
             col1, col2, col3 = st.columns(3)
             
             with col1:
-                if st.button("📋 Copy to Clipboard", key="copy_cover", use_container_width=True):
-                    st.write("📋 Cover letter copied to clipboard!")
-                    st.info("💡 You can now paste the cover letter into any document.")
+                if st.button("📋 Copy to Clipboard", use_container_width=True):
+                    st.write("✅ Cover letter copied to clipboard!")
+                    st.code(st.session_state.cover_letter)
             
             with col2:
+                # Download as TXT
                 st.download_button(
-                    label="📄 Save Cover Letter (TXT)",
-                    data=cover_letter_text,
-                    file_name=f"cover_letter_{tone_used}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                    label="📄 Download as TXT",
+                    data=st.session_state.cover_letter,
+                    file_name=f"cover_letter_{tone}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
                     mime="text/plain",
-                    help="Download the cover letter as a text file",
-                    use_container_width=True,
-                    icon="📄"
+                    use_container_width=True
                 )
             
             with col3:
-                markdown_content = f"""# Cover Letter
+                # Download as Markdown
+                cover_letter_md = f"""# Cover Letter
+*Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*
+*Tone: {tone.title()}*
 
-**Generated with {tone_used.capitalize()} tone**
-
-{cover_letter_text}
-
----
-*Generated by ResumeAI Helper - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*
+{st.session_state.cover_letter}
 """
                 st.download_button(
-                    label="📋 Save Cover Letter (MD)",
-                    data=markdown_content,
-                    file_name=f"cover_letter_{tone_used}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
+                    label="📝 Download as MD",
+                    data=cover_letter_md,
+                    file_name=f"cover_letter_{tone}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
                     mime="text/markdown",
-                    help="Download the cover letter as a markdown file",
-                    use_container_width=True,
-                    icon="📋"
+                    use_container_width=True
                 )
-            
-            # Regenerate with different tone
-            st.divider()
-            st.markdown("### 🔄 Regenerate with Different Tone")
-            st.info("💡 Want to try a different tone? Change the tone selection above and click 'Generate Cover Letter' again.")
-            
+        
+        else:
+            st.info("📝 No cover letter generated yet. Click 'Generate Cover Letter' to create one.")
+    
     else:
-        st.info("📝 Please upload your resume and job description in the 'Upload & Analyze' tab to generate a cover letter.")
+        st.error("❌ Resume and job description texts are required for cover letter generation.")
+        st.info("💡 Please upload and extract text from your resume and job description in the 'Upload & Analyze' tab first.")
 
 # Footer
 st.divider()
-st.caption("Built with ❤️ using Streamlit, Ollama & Hugging Face • ResumeAI Helper") 
+st.caption("Built with ❤️ using Streamlit, Google Gemini • ResumeAI Helper") 
