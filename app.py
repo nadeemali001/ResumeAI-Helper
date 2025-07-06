@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 from utils import extract_text_from_file, get_file_info, validate_file_type, analyze_resume_vs_jd, analyze_ats_score, generate_cover_letter, get_hf_client, HF_AVAILABLE
+from config import get_error_info, should_use_fallback, get_recommended_provider, DEFAULT_MODELS, ERROR_MESSAGES
 
 # Set page config
 st.set_page_config(
@@ -125,21 +126,37 @@ with st.sidebar:
     # AI Model Settings
     st.markdown("### 🤖 AI Model Settings")
     
-    # AI Provider Selection
-    ai_provider = st.radio(
-        "Choose AI Provider",
-        options=["☁️ Cloud (Hugging Face)", "🖥️ Local (Ollama)"],
-        index=0,  # Default to Hugging Face for cloud deployment
-        help="For cloud deployment, Hugging Face is recommended. Ollama requires local installation."
-    )
-    
-    use_hf = ai_provider == "☁️ Cloud (Hugging Face)"
+    # AI Provider Selection with warnings about HF issues
+    if should_use_fallback():
+        st.warning("⚠️ **WIDESPREAD HUGGING FACE API ISSUES DETECTED**")
+        st.error("🚨 Hugging Face is experiencing widespread 401/404 errors affecting many users. Ollama is recommended.")
+        
+        ai_provider = st.radio(
+            "Choose AI Provider",
+            options=["🖥️ Local (Ollama) - RECOMMENDED", "☁️ Cloud (Hugging Face) - MAY NOT WORK"],
+            index=0,  # Default to Ollama when HF has issues
+            help="Due to widespread Hugging Face API issues, Ollama is recommended."
+        )
+        
+        use_hf = ai_provider == "☁️ Cloud (Hugging Face) - MAY NOT WORK"
+    else:
+        ai_provider = st.radio(
+            "Choose AI Provider",
+            options=["☁️ Cloud (Hugging Face)", "🖥️ Local (Ollama)"],
+            index=0,  # Default to Hugging Face for cloud deployment
+            help="For cloud deployment, Hugging Face is recommended. Ollama requires local installation."
+        )
+        
+        use_hf = ai_provider == "☁️ Cloud (Hugging Face)"
     
     # Info for cloud deployment
     if use_hf:
-        st.info("☁️ **Cloud Mode:** Using Hugging Face models for online deployment.")
+        if should_use_fallback():
+            st.error("☁️ **Cloud Mode (EXPERIMENTAL):** Hugging Face has known API issues. May not work.")
+        else:
+            st.info("☁️ **Cloud Mode:** Using Hugging Face models for online deployment.")
     else:
-        st.warning("🖥️ **Local Mode:** Ollama requires local installation and won't work in cloud deployment.")
+        st.success("🖥️ **Local Mode:** Using Ollama for reliable local AI processing.")
     
     if use_hf:
         # Hugging Face Settings
@@ -157,20 +174,14 @@ with st.sidebar:
                 placeholder="hf_..."
             )
             
-            # Popular HF models
-            hf_models = [
-                "mistralai/Mistral-7B-Instruct-v0.2",
-                "meta-llama/Llama-2-7b-chat-hf",
-                "microsoft/DialoGPT-medium",
-                "gpt2",
-                "tiiuae/falcon-7b-instruct"
-            ]
+            # Popular HF models from config
+            hf_models = DEFAULT_MODELS["huggingface"]
             
             selected_model = st.selectbox(
                 "Select Hugging Face Model",
                 options=hf_models,
                 index=0,
-                help="Choose a Hugging Face model for analysis"
+                help="Choose a Hugging Face model for analysis (may not work due to API issues)"
             )
             
             # Test HF connection
@@ -238,8 +249,8 @@ with st.sidebar:
         # Ollama Settings
         st.markdown("#### 🖥️ Ollama Settings")
         
-        # Default model options
-        default_models = ["llama3.1", "mistral", "gemma3:12b"]
+        # Default model options from config
+        default_models = DEFAULT_MODELS["ollama"]
         
         # Try to get available models from Ollama
         try:
