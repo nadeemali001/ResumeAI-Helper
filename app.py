@@ -8,6 +8,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.colors import gray
 from io import BytesIO
+import os
 from utils import extract_text_from_file, get_file_info, validate_file_type, analyze_resume_vs_jd, analyze_ats_score, generate_cover_letter
 
 # Set page config
@@ -204,13 +205,17 @@ with st.sidebar:
     # Google Gemini Settings
     st.markdown("### 🤖 AI Settings")
     
-    # Google Gemini API Key
-    gemini_api_key = st.text_input(
-        "Google Gemini API Key",
-        type="password",
-        help="Get your API key from https://makersuite.google.com/app/apikey",
-        placeholder="AIza..."
-    )
+    # Get API key from environment variable
+    gemini_api_key = os.getenv('GEMINI_API_KEY')
+    
+    if gemini_api_key:
+        st.success("✅ Google Gemini API key loaded from environment")
+        st.info("🔒 API key is securely configured")
+    else:
+        st.error("❌ Google Gemini API key not found in environment")
+        st.info("💡 Set GEMINI_API_KEY environment variable to use AI features")
+        st.markdown("**To set the API key:**")
+        st.code("export GEMINI_API_KEY='your_api_key_here'")
     
     st.divider()
     
