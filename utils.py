@@ -193,7 +193,7 @@ def analyze_resume_vs_jd(resume_text: str, jd_text: str, api_key: Optional[str] 
         }
 
 
-def generate_cover_letter(resume_text: str, jd_text: str, tone: str = "formal", api_key: Optional[str] = None) -> str:
+def generate_cover_letter(resume_text: str, jd_text: str, tone: str = "formal", api_key: Optional[str] = None, custom_prompt: str = "") -> str:
     """
     Generate a professional cover letter based on resume and job description with specified tone.
     
@@ -202,6 +202,7 @@ def generate_cover_letter(resume_text: str, jd_text: str, tone: str = "formal", 
         jd_text: Extracted text from job description
         tone: Desired tone for the cover letter ("formal", "confident", "enthusiastic")
         api_key: Google Gemini API key
+        custom_prompt: Additional custom instructions for generation
         
     Returns:
         str: Generated cover letter text
@@ -237,6 +238,11 @@ def generate_cover_letter(resume_text: str, jd_text: str, tone: str = "formal", 
             confidence = "I am confident that my passion and experience make me the perfect fit for this exciting opportunity."
             enthusiasm = "I am incredibly excited about the possibility of joining your dynamic team!"
         
+        # Add custom prompt instructions if provided
+        custom_instruction = ""
+        if custom_prompt:
+            custom_instruction = f"\n\nAdditional Instructions: {custom_prompt}"
+        
         # Create dynamic cover letter
         cover_letter = f"""{opening}
 
@@ -244,7 +250,7 @@ def generate_cover_letter(resume_text: str, jd_text: str, tone: str = "formal", 
 
 My experience includes relevant skills and achievements that directly align with the requirements you've outlined. {enthusiasm}
 
-I am particularly drawn to this opportunity because of the company's reputation for innovation and excellence. I am eager to bring my expertise to your team and help drive continued success.
+I am particularly drawn to this opportunity because of the company's reputation for innovation and excellence. I am eager to bring my expertise to your team and help drive continued success.{custom_instruction}
 
 Thank you for considering my application. I look forward to discussing how my background, skills, and enthusiasm can contribute to your team.
 

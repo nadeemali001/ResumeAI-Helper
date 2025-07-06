@@ -2,6 +2,12 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import plotly.graph_objects as go
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib.colors import gray
+from io import BytesIO
 from utils import extract_text_from_file, get_file_info, validate_file_type, analyze_resume_vs_jd, analyze_ats_score, generate_cover_letter
 
 # Set page config
@@ -77,6 +83,51 @@ def create_gauge_chart(value, title, color="blue"):
     ))
     fig.update_layout(height=300, margin=dict(l=20, r=20, t=40, b=20))
     return fig
+
+def generate_pdf(cover_letter_text, tone):
+    """Generate a PDF file from cover letter text."""
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    story = []
+    
+    # Get styles
+    styles = getSampleStyleSheet()
+    normal_style = styles['Normal']
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=16,
+        spaceAfter=30,
+        alignment=1  # Center alignment
+    )
+    
+    # Add title
+    story.append(Paragraph("Cover Letter", title_style))
+    story.append(Spacer(1, 20))
+    
+    # Add metadata
+    metadata_style = ParagraphStyle(
+        'Metadata',
+        parent=styles['Normal'],
+        fontSize=10,
+        textColor=gray,
+        alignment=1
+    )
+    story.append(Paragraph(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", metadata_style))
+    story.append(Paragraph(f"Tone: {tone.title()}", metadata_style))
+    story.append(Spacer(1, 30))
+    
+    # Add cover letter content
+    paragraphs = cover_letter_text.split('\n\n')
+    for para in paragraphs:
+        if para.strip():
+            story.append(Paragraph(para.strip(), normal_style))
+            story.append(Spacer(1, 12))
+    
+    # Build PDF
+    doc.build(story)
+    buffer.seek(0)
+    return buffer
 
 def save_analysis_to_history(resume_text, job_text, analysis_results, model_used):
     """Save analysis results to session state history."""
@@ -916,27 +967,77 @@ with tab4:
                     st.error(f"❌ Cover letter generation failed: {str(e)}")
                     st.info("💡 Please check your Google Gemini API key and try again.")
         
-        # Display generated cover letter
+        # Display generated cover letter with editing capabilities
         if st.session_state.cover_letter:
-            st.markdown("### 📄 Generated Cover Letter")
+            st.markdown("### 📄 Cover Letter Editor")
             
-            # Display the cover letter
-            st.text_area(
-                "Cover Letter",
+            # Editable cover letter text area
+            edited_cover_letter = st.text_area(
+                "Edit your cover letter",
                 value=st.session_state.cover_letter,
                 height=400,
-                disabled=True
+                help="You can edit the generated cover letter here"
             )
             
-            # Copy and download options
-            col1, col2, col3 = st.columns(3)
+            # Update session state with edited version
+            if edited_cover_letter != st.session_state.cover_letter:
+                st.session_state.cover_letter = edited_cover_letter
+                st.success("✅ Cover letter updated!")
+            
+            st.divider()
+            
+            # Action buttons
+            col1, col2, col3, col4, col5 = st.columns(5)
             
             with col1:
-                if st.button("📋 Copy to Clipboard", use_container_width=True):
-                    st.write("✅ Cover letter copied to clipboard!")
-                    st.code(st.session_state.cover_letter)
+                if st.button("🔄 Regenerate with AI", use_container_width=True, type="secondary"):
+                    if not gemini_api_key:
+                        st.error("❌ Google Gemini API key is required.")
+                    else:
+                        try:
+                            with st.spinner("🔄 Regenerating cover letter..."):
+                                new_cover_letter = generate_cover_letter(
+                                    st.session_state.resume_text,
+                                    st.session_state.job_text,
+                                    tone,
+                                    gemini_api_key
+                                )
+                                st.session_state.cover_letter = new_cover_letter
+                                st.success("✅ Cover letter regenerated!")
+                                st.rerun()
+                        except Exception as e:
+                            st.error(f"❌ Regeneration failed: {str(e)}")
             
             with col2:
+                # Custom prompt regeneration
+                custom_prompt = st.text_input(
+                    "Custom instructions for regeneration",
+                    placeholder="e.g., Make it more specific about my experience...",
+                    help="Add custom instructions for AI regeneration"
+                )
+                
+                if st.button("🤖 Regenerate with Custom Prompt", use_container_width=True, type="secondary"):
+                    if not gemini_api_key:
+                        st.error("❌ Google Gemini API key is required.")
+                    elif not custom_prompt:
+                        st.warning("⚠️ Please enter custom instructions.")
+                    else:
+                        try:
+                            with st.spinner("🤖 Regenerating with custom instructions..."):
+                                new_cover_letter = generate_cover_letter(
+                                    st.session_state.resume_text,
+                                    st.session_state.job_text,
+                                    tone,
+                                    gemini_api_key,
+                                    custom_prompt
+                                )
+                                st.session_state.cover_letter = new_cover_letter
+                                st.success("✅ Cover letter regenerated with custom instructions!")
+                                st.rerun()
+                        except Exception as e:
+                            st.error(f"❌ Custom regeneration failed: {str(e)}")
+            
+            with col3:
                 # Download as TXT
                 st.download_button(
                     label="📄 Download as TXT",
@@ -946,7 +1047,7 @@ with tab4:
                     use_container_width=True
                 )
             
-            with col3:
+            with col4:
                 # Download as Markdown
                 cover_letter_md = f"""# Cover Letter
 *Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*
@@ -961,6 +1062,28 @@ with tab4:
                     mime="text/markdown",
                     use_container_width=True
                 )
+            
+            with col5:
+                # Download as PDF
+                pdf_buffer = generate_pdf(st.session_state.cover_letter, tone)
+                st.download_button(
+                    label="📄 Download as PDF",
+                    data=pdf_buffer.getvalue(),
+                    file_name=f"cover_letter_{tone}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+            
+            # Additional features
+            st.divider()
+            st.markdown("### 💡 Tips for Better Cover Letters")
+            st.markdown("""
+            - **Customize the tone** based on the company culture
+            - **Highlight specific achievements** from your resume
+            - **Address key requirements** from the job description
+            - **Keep it concise** (1-2 pages maximum)
+            - **Proofread carefully** before sending
+            """)
         
         else:
             st.info("📝 No cover letter generated yet. Click 'Generate Cover Letter' to create one.")
