@@ -11,15 +11,26 @@ from wordcloud import WordCloud
 from collections import Counter
 import numpy as np
 import re
-import nltk
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
 import pandas as pd
 
 # Google Gemini imports will be added here
 # import google.generativeai as genai
+
+# Try to import optional dependencies
+try:
+    import nltk
+    from nltk.corpus import stopwords
+    from nltk.tokenize import word_tokenize
+    NLTK_AVAILABLE = True
+except ImportError:
+    NLTK_AVAILABLE = False
+
+try:
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.metrics.pairwise import cosine_similarity
+    SKLEARN_AVAILABLE = True
+except ImportError:
+    SKLEARN_AVAILABLE = False
 
 
 def extract_text_from_file(file) -> Optional[str]:
@@ -376,23 +387,6 @@ def analyze_ats_score(resume_text: str, jd_text: str, api_key: Optional[str] = N
             "structure_recommendations": ["analysis_failed"],
             "summary": f"ATS analysis failed: {str(e)}. Please check your Google Gemini API key and try again."
         }
-        
-    except Exception as e:
-        st.error(f"Error during ATS analysis: {str(e)}")
-        # Return fallback analysis
-        return {
-            "ats_score": 0,
-            "keyword_match_score": 0,
-            "formatting_score": 0,
-            "content_score": 0,
-            "missing_keywords": ["analysis_failed"],
-            "formatting_issues": ["analysis_failed"],
-            "content_issues": ["analysis_failed"],
-            "ats_optimization_tips": ["Please check your Google Gemini API key and ensure the service is available."],
-            "keyword_suggestions": ["analysis_failed"],
-            "structure_recommendations": ["analysis_failed"],
-            "summary": f"ATS analysis failed: {str(e)}. Please check your Google Gemini API key and try again."
-        }
 
 
 def preprocess_text_for_ats(text: str) -> str:
@@ -629,4 +623,307 @@ def create_skills_bar_chart(resume_text: str, jd_text: str) -> go.Figure:
         )
     )
     
-    return fig 
+    return fig
+
+
+def calculate_tfidf_similarity(resume_text: str, jd_text: str) -> float:
+    """
+    Calculate TF-IDF similarity between resume and job description.
+    
+    Args:
+        resume_text: Cleaned resume text
+        jd_text: Cleaned job description text
+        
+    Returns:
+        float: Similarity score between 0 and 1
+    """
+    if not SKLEARN_AVAILABLE:
+        return 0.5  # Fallback score
+    
+    try:
+        # Create TF-IDF vectorizer
+        vectorizer = TfidfVectorizer(
+            stop_words='english',
+            ngram_range=(1, 2),
+            max_features=1000
+        )
+        
+        # Fit and transform the texts
+        tfidf_matrix = vectorizer.fit_transform([resume_text, jd_text])
+        
+        # Calculate cosine similarity
+        similarity = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
+        
+        return float(similarity)
+        
+    except Exception:
+        return 0.5  # Fallback score
+
+
+def analyze_keywords(resume_text: str, jd_text: str) -> Dict[str, Any]:
+    """
+    Analyze keywords in resume vs job description.
+    
+    Args:
+        resume_text: Cleaned resume text
+        jd_text: Cleaned job description text
+        
+    Returns:
+        dict: Keyword analysis results
+    """
+    # Extract keywords from job description
+    jd_words = set(jd_text.lower().split())
+    resume_words = set(resume_text.lower().split())
+    
+    # Common professional keywords
+    professional_keywords = {
+        'python', 'java', 'javascript', 'sql', 'html', 'css', 'react', 'angular', 'vue',
+        'node.js', 'docker', 'kubernetes', 'aws', 'azure', 'gcp', 'machine learning',
+        'ai', 'data analysis', 'excel', 'powerpoint', 'word', 'project management',
+        'agile', 'scrum', 'leadership', 'communication', 'teamwork', 'problem solving',
+        'analytical', 'research', 'writing', 'marketing', 'sales', 'customer service',
+        'finance', 'accounting', 'design', 'creative', 'management', 'supervision',
+        'training', 'mentoring', 'strategy', 'planning', 'organization'
+    }
+    
+    # Find relevant keywords in job description
+    jd_keywords = jd_words.intersection(professional_keywords)
+    
+    # Find matching keywords in resume
+    found_keywords = resume_words.intersection(jd_keywords)
+    missing_keywords = jd_keywords - found_keywords
+    
+    # Calculate match percentage
+    match_percentage = (len(found_keywords) / len(jd_keywords) * 100) if jd_keywords else 0
+    
+    # Calculate keyword density
+    total_words = len(resume_text.split())
+    keyword_density = (len(found_keywords) / total_words * 100) if total_words > 0 else 0
+    
+    # Generate suggestions
+    suggestions = list(missing_keywords)[:10]  # Top 10 missing keywords
+    
+    return {
+        "found_keywords": list(found_keywords),
+        "missing_keywords": list(missing_keywords),
+        "match_percentage": match_percentage,
+        "keyword_density": keyword_density,
+        "suggestions": suggestions
+    }
+
+
+def analyze_formatting(resume_text: str) -> Dict[str, Any]:
+    """
+    Analyze resume formatting and structure.
+    
+    Args:
+        resume_text: Raw resume text
+        
+    Returns:
+        dict: Formatting analysis results
+    """
+    issues = []
+    recommendations = []
+    formatting_score = 100
+    
+    # Check for bullet points
+    bullet_patterns = [r'•', r'\-', r'\*', r'→', r'▶']
+    has_bullets = any(re.search(pattern, resume_text) for pattern in bullet_patterns)
+    
+    if not has_bullets:
+        issues.append("No bullet points found - consider using bullet points for better readability")
+        recommendations.append("Add bullet points (•, -, *) to highlight achievements and responsibilities")
+        formatting_score -= 15
+    
+    # Check for section headers
+    section_headers = ['experience', 'education', 'skills', 'summary', 'objective', 'work history']
+    has_sections = any(header in resume_text.lower() for header in section_headers)
+    
+    if not has_sections:
+        issues.append("No clear section headers found")
+        recommendations.append("Add clear section headers like 'Experience', 'Education', 'Skills'")
+        formatting_score -= 20
+    
+    # Check text length
+    word_count = len(resume_text.split())
+    if word_count < 100:
+        issues.append("Resume appears too short")
+        recommendations.append("Add more content to make your resume comprehensive")
+        formatting_score -= 10
+    elif word_count > 800:
+        issues.append("Resume appears too long")
+        recommendations.append("Consider condensing content to 1-2 pages")
+        formatting_score -= 5
+    
+    # Check for contact information
+    contact_patterns = [r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', r'\b\d{3}[-.]?\d{3}[-.]?\d{4}\b']
+    has_contact = any(re.search(pattern, resume_text) for pattern in contact_patterns)
+    
+    if not has_contact:
+        issues.append("No contact information found")
+        recommendations.append("Add email and phone number")
+        formatting_score -= 10
+    
+    return {
+        "formatting_score": max(0, formatting_score),
+        "issues": issues,
+        "recommendations": recommendations
+    }
+
+
+def analyze_content_quality(resume_text: str, jd_text: str) -> Dict[str, Any]:
+    """
+    Analyze content quality of resume.
+    
+    Args:
+        resume_text: Resume text
+        jd_text: Job description text
+        
+    Returns:
+        dict: Content quality analysis results
+    """
+    issues = []
+    content_score = 100
+    
+    # Check for action verbs
+    action_verbs = [
+        'developed', 'implemented', 'managed', 'created', 'designed', 'analyzed',
+        'improved', 'increased', 'decreased', 'coordinated', 'led', 'supervised',
+        'trained', 'mentored', 'researched', 'evaluated', 'optimized', 'streamlined'
+    ]
+    
+    resume_lower = resume_text.lower()
+    action_verb_count = sum(1 for verb in action_verbs if verb in resume_lower)
+    
+    if action_verb_count < 3:
+        issues.append("Limited use of action verbs")
+        content_score -= 15
+    
+    # Check for metrics/numbers
+    metric_pattern = r'\d+%|\d+\s*(percent|dollars?|users?|customers?|projects?|years?)'
+    has_metrics = bool(re.search(metric_pattern, resume_text, re.IGNORECASE))
+    
+    if not has_metrics:
+        issues.append("No quantifiable achievements found")
+        content_score -= 20
+    
+    # Check for specific skills mentioned in JD
+    jd_words = set(jd_text.lower().split())
+    resume_words = set(resume_text.lower().split())
+    skill_overlap = len(jd_words.intersection(resume_words))
+    
+    if skill_overlap < 5:
+        issues.append("Limited skill overlap with job description")
+        content_score -= 25
+    
+    return {
+        "content_score": max(0, content_score),
+        "issues": issues
+    }
+
+
+def calculate_overall_ats_score(tfidf_similarity: float, keyword_analysis: Dict, 
+                               formatting_analysis: Dict, content_analysis: Dict) -> float:
+    """
+    Calculate overall ATS score based on all analyses.
+    
+    Args:
+        tfidf_similarity: TF-IDF similarity score
+        keyword_analysis: Keyword analysis results
+        formatting_analysis: Formatting analysis results
+        content_analysis: Content quality analysis results
+        
+    Returns:
+        float: Overall ATS score (0-100)
+    """
+    # Weighted scoring
+    tfidf_weight = 0.3
+    keyword_weight = 0.3
+    formatting_weight = 0.2
+    content_weight = 0.2
+    
+    # Calculate weighted score
+    tfidf_score = tfidf_similarity * 100
+    keyword_score = keyword_analysis.get("match_percentage", 0)
+    formatting_score = formatting_analysis.get("formatting_score", 0)
+    content_score = content_analysis.get("content_score", 0)
+    
+    overall_score = (
+        tfidf_score * tfidf_weight +
+        keyword_score * keyword_weight +
+        formatting_score * formatting_weight +
+        content_score * content_weight
+    )
+    
+    return round(overall_score, 1)
+
+
+def generate_ats_tips(keyword_analysis: Dict, formatting_analysis: Dict, 
+                     content_analysis: Dict) -> list:
+    """
+    Generate ATS optimization tips based on analysis results.
+    
+    Args:
+        keyword_analysis: Keyword analysis results
+        formatting_analysis: Formatting analysis results
+        content_analysis: Content quality analysis results
+        
+    Returns:
+        list: List of optimization tips
+    """
+    tips = []
+    
+    # Keyword tips
+    if keyword_analysis.get("match_percentage", 0) < 50:
+        tips.append("Add more keywords from the job description to improve ATS matching")
+    
+    if keyword_analysis.get("missing_keywords"):
+        tips.append(f"Consider adding these keywords: {', '.join(keyword_analysis['missing_keywords'][:5])}")
+    
+    # Formatting tips
+    if formatting_analysis.get("issues"):
+        tips.extend(formatting_analysis["issues"][:3])
+    
+    # Content tips
+    if content_analysis.get("issues"):
+        tips.extend(content_analysis["issues"][:3])
+    
+    # General tips
+    tips.extend([
+        "Use standard section headers (Experience, Education, Skills)",
+        "Include quantifiable achievements with numbers and percentages",
+        "Use action verbs to start bullet points",
+        "Keep formatting simple and avoid graphics or tables",
+        "Ensure contact information is clearly visible"
+    ])
+    
+    return tips[:10]  # Return top 10 tips
+
+
+def generate_ats_summary(ats_score: float, keyword_analysis: Dict, 
+                        formatting_analysis: Dict) -> str:
+    """
+    Generate a summary of ATS analysis results.
+    
+    Args:
+        ats_score: Overall ATS score
+        keyword_analysis: Keyword analysis results
+        formatting_analysis: Formatting analysis results
+        
+    Returns:
+        str: Summary text
+    """
+    if ats_score >= 80:
+        summary = "Excellent ATS optimization! Your resume is well-structured and keyword-optimized."
+    elif ats_score >= 60:
+        summary = "Good ATS optimization with room for improvement in keyword matching and formatting."
+    elif ats_score >= 40:
+        summary = "Fair ATS optimization. Consider adding more relevant keywords and improving structure."
+    else:
+        summary = "Poor ATS optimization. Significant improvements needed in keywords, formatting, and content."
+    
+    keyword_match = keyword_analysis.get("match_percentage", 0)
+    if keyword_match < 50:
+        summary += f" Only {keyword_match:.1f}% of job description keywords were found in your resume."
+    
+    return summary 
