@@ -163,6 +163,43 @@ docker run -p 8501:8501 -e GEMINI_API_KEY=your_api_key_here resumeai-helper
 
 ## 🚀 Deployment Options
 
+### 🎯 Streamlit Community Cloud (Recommended)
+**Easiest deployment option for Streamlit apps**
+
+1. **Push to GitHub**
+   ```bash
+   git add .
+   git commit -m "Prepare for Streamlit deployment"
+   git push origin main
+   ```
+
+2. **Deploy to Streamlit Cloud**
+   - Visit [share.streamlit.io](https://share.streamlit.io)
+   - Sign in with GitHub
+   - Click "New app"
+   - Select your repository: `ResumeAI-Helper`
+   - Set main file path: `app.py`
+   - Click "Deploy"
+
+3. **Configure Secrets** (Optional)
+   - In your Streamlit app dashboard, go to "Settings" → "Secrets"
+   - Add your Google Gemini API key:
+   ```toml
+   GEMINI_API_KEY = "your_api_key_here"
+   ```
+
+4. **Access Your App**
+   - Your app will be available at: `https://your-app-name.streamlit.app`
+   - Automatic updates when you push to GitHub
+
+**Benefits:**
+- ✅ One-click deployment
+- ✅ Automatic dependency management
+- ✅ Free hosting
+- ✅ Custom subdomain
+- ✅ Direct GitHub integration
+- ✅ No Docker configuration needed
+
 ### Local Development
 - Run directly with Streamlit for development and testing
 - Full access to all features
@@ -173,9 +210,8 @@ docker run -p 8501:8501 -e GEMINI_API_KEY=your_api_key_here resumeai-helper
 - Consistent environment across platforms
 - Easy deployment to cloud platforms
 
-### Cloud Platforms
-The app can be deployed to various cloud platforms:
-- **Streamlit Cloud**: Direct deployment from GitHub
+### Other Cloud Platforms
+The app can also be deployed to:
 - **Heroku**: Using Docker deployment
 - **Google Cloud Run**: Container-based deployment
 - **AWS ECS**: Container orchestration
