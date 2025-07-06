@@ -11,6 +11,12 @@ from wordcloud import WordCloud
 from collections import Counter
 import numpy as np
 import re
+import nltk
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+import pandas as pd
 
 # Google Gemini imports will be added here
 # import google.generativeai as genai
@@ -279,7 +285,7 @@ Best regards,
 
 def analyze_ats_score(resume_text: str, jd_text: str, api_key: Optional[str] = None) -> Dict[str, Any]:
     """
-    Analyze resume for ATS optimization and provide detailed improvement recommendations.
+    Analyze resume for ATS optimization using advanced NLP techniques.
     
     Args:
         resume_text: Extracted text from resume
@@ -290,31 +296,66 @@ def analyze_ats_score(resume_text: str, jd_text: str, api_key: Optional[str] = N
         dict: ATS analysis results with scores and recommendations
     """
     try:
-        # TODO: Implement Google Gemini integration
-        # This is a placeholder that will be replaced with actual Gemini API calls
+        # Download required NLTK data
+        try:
+            nltk.data.find('tokenizers/punkt')
+        except LookupError:
+            nltk.download('punkt', quiet=True)
         
+        try:
+            nltk.data.find('corpora/stopwords')
+        except LookupError:
+            nltk.download('stopwords', quiet=True)
+        
+        # Preprocess texts
+        resume_clean = preprocess_text_for_ats(resume_text)
+        jd_clean = preprocess_text_for_ats(jd_text)
+        
+        # Calculate TF-IDF similarity
+        tfidf_similarity = calculate_tfidf_similarity(resume_clean, jd_clean)
+        
+        # Extract and analyze keywords
+        keyword_analysis = analyze_keywords(resume_clean, jd_clean)
+        
+        # Analyze formatting and structure
+        formatting_analysis = analyze_formatting(resume_text)
+        
+        # Calculate content quality score
+        content_analysis = analyze_content_quality(resume_text, jd_text)
+        
+        # Calculate overall ATS score
+        ats_score = calculate_overall_ats_score(
+            tfidf_similarity, 
+            keyword_analysis, 
+            formatting_analysis, 
+            content_analysis
+        )
+        
+        # Generate comprehensive results
         ats_result = {
-            "ats_score": 75,
-            "keyword_match_score": 70,
-            "formatting_score": 80,
-            "content_score": 75,
-            "missing_keywords": ["python", "machine learning", "data analysis", "project management", "leadership"],
-            "formatting_issues": ["Consider using standard fonts", "Improve bullet point consistency"],
-            "content_issues": ["Add more specific achievements", "Include relevant certifications"],
-            "ats_optimization_tips": [
-                "Use standard fonts like Arial or Times New Roman",
-                "Include relevant keywords from the job description",
-                "Use clear section headings",
-                "Avoid graphics and tables that may not parse well",
-                "Keep formatting simple and clean"
-            ],
-            "keyword_suggestions": ["python", "data analysis", "project management"],
-            "structure_recommendations": [
-                "Use clear section headers",
-                "Include a professional summary",
-                "List experience in reverse chronological order"
-            ],
-            "summary": "Good ATS compatibility with room for improvement in keyword optimization and formatting."
+            "ats_score": ats_score,
+            "keyword_match_score": keyword_analysis["match_percentage"],
+            "formatting_score": formatting_analysis["formatting_score"],
+            "content_score": content_analysis["content_score"],
+            "tfidf_similarity": tfidf_similarity,
+            "missing_keywords": keyword_analysis["missing_keywords"],
+            "found_keywords": keyword_analysis["found_keywords"],
+            "keyword_density": keyword_analysis["keyword_density"],
+            "formatting_issues": formatting_analysis["issues"],
+            "content_issues": content_analysis["issues"],
+            "ats_optimization_tips": generate_ats_tips(keyword_analysis, formatting_analysis, content_analysis),
+            "keyword_suggestions": keyword_analysis["suggestions"],
+            "structure_recommendations": formatting_analysis["recommendations"],
+            "summary": generate_ats_summary(ats_score, keyword_analysis, formatting_analysis),
+            "detailed_stats": {
+                "total_keywords_found": len(keyword_analysis["found_keywords"]),
+                "total_keywords_missing": len(keyword_analysis["missing_keywords"]),
+                "keyword_coverage": keyword_analysis["match_percentage"],
+                "text_length": len(resume_text),
+                "word_count": len(resume_text.split()),
+                "sentence_count": len(re.split(r'[.!?]+', resume_text)),
+                "paragraph_count": len([p for p in resume_text.split('\n\n') if p.strip()])
+            }
         }
         
         return ats_result
@@ -335,7 +376,48 @@ def analyze_ats_score(resume_text: str, jd_text: str, api_key: Optional[str] = N
             "structure_recommendations": ["analysis_failed"],
             "summary": f"ATS analysis failed: {str(e)}. Please check your Google Gemini API key and try again."
         }
+        
+    except Exception as e:
+        st.error(f"Error during ATS analysis: {str(e)}")
+        # Return fallback analysis
+        return {
+            "ats_score": 0,
+            "keyword_match_score": 0,
+            "formatting_score": 0,
+            "content_score": 0,
+            "missing_keywords": ["analysis_failed"],
+            "formatting_issues": ["analysis_failed"],
+            "content_issues": ["analysis_failed"],
+            "ats_optimization_tips": ["Please check your Google Gemini API key and ensure the service is available."],
+            "keyword_suggestions": ["analysis_failed"],
+            "structure_recommendations": ["analysis_failed"],
+            "summary": f"ATS analysis failed: {str(e)}. Please check your Google Gemini API key and try again."
+        }
 
+
+def preprocess_text_for_ats(text: str) -> str:
+    """
+    Preprocess text specifically for ATS analysis.
+    
+    Args:
+        text: Raw text to preprocess
+        
+    Returns:
+        str: Cleaned text suitable for ATS analysis
+    """
+    if not text:
+        return ""
+    
+    # Convert to lowercase
+    text = text.lower()
+    
+    # Remove special characters but keep important ones
+    text = re.sub(r'[^\w\s\-\.]', ' ', text)
+    
+    # Remove extra whitespace
+    text = re.sub(r'\s+', ' ', text).strip()
+    
+    return text
 
 def preprocess_text_for_visualization(text: str) -> str:
     """

@@ -753,6 +753,32 @@ with tab3:
         
         st.divider()
         
+        # Enhanced ATS Statistics
+        st.markdown("### 📊 Detailed ATS Statistics")
+        
+        # Display detailed stats in a clean format
+        detailed_stats = ats_results.get('detailed_stats', {})
+        if detailed_stats:
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.metric("📝 Total Words", f"{detailed_stats.get('word_count', 0):,}")
+                st.metric("📄 Text Length", f"{detailed_stats.get('text_length', 0):,} chars")
+            
+            with col2:
+                st.metric("🔑 Keywords Found", f"{detailed_stats.get('total_keywords_found', 0)}")
+                st.metric("❌ Keywords Missing", f"{detailed_stats.get('total_keywords_missing', 0)}")
+            
+            with col3:
+                st.metric("📊 Keyword Coverage", f"{detailed_stats.get('keyword_coverage', 0):.1f}%")
+                st.metric("📈 TF-IDF Similarity", f"{ats_results.get('tfidf_similarity', 0) * 100:.1f}%")
+            
+            with col4:
+                st.metric("📝 Sentences", f"{detailed_stats.get('sentence_count', 0)}")
+                st.metric("📋 Paragraphs", f"{detailed_stats.get('paragraph_count', 0)}")
+        
+        st.divider()
+        
         # ATS Summary
         st.markdown("### 📋 ATS Summary")
         ats_summary = ats_results.get('summary', 'No ATS summary available.')
@@ -760,6 +786,43 @@ with tab3:
             st.info(f"**{ats_summary}**")
         else:
             st.warning("ATS summary not available.")
+        
+        st.divider()
+        
+        # Keyword Analysis
+        st.markdown("### 🔑 Keyword Analysis")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Found Keywords
+            found_keywords = ats_results.get('found_keywords', [])
+            if found_keywords:
+                st.markdown("**✅ Keywords Found in Your Resume:**")
+                keyword_cols = st.columns(3)
+                for i, keyword in enumerate(found_keywords[:9]):  # Show top 9
+                    col_idx = i % 3
+                    with keyword_cols[col_idx]:
+                        st.success(f"✅ {keyword}")
+                if len(found_keywords) > 9:
+                    st.markdown(f"*... and {len(found_keywords) - 9} more keywords found*")
+            else:
+                st.warning("No keywords found in your resume.")
+        
+        with col2:
+            # Missing Keywords
+            missing_keywords = ats_results.get('missing_keywords', [])
+            if missing_keywords:
+                st.markdown("**❌ Missing Keywords to Add:**")
+                missing_cols = st.columns(3)
+                for i, keyword in enumerate(missing_keywords[:9]):  # Show top 9
+                    col_idx = i % 3
+                    with missing_cols[col_idx]:
+                        st.error(f"❌ {keyword}")
+                if len(missing_keywords) > 9:
+                    st.markdown(f"*... and {len(missing_keywords) - 9} more keywords missing*")
+            else:
+                st.success("✅ No missing keywords identified!")
         
         st.divider()
         
