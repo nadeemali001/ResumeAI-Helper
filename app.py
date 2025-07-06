@@ -333,9 +333,7 @@ with tab1:
                 extracted_text = extract_text_from_file(resume_file)
                 if extracted_text:
                     st.session_state.resume_text = extracted_text
-                    st.success("✅ Text extracted automatically!")
-                    st.info(f"📝 **Word count:** {len(extracted_text.split())} words")
-                    st.info(f"📏 **Character count:** {len(extracted_text)} characters")
+                    st.success("✅ Resume uploaded successfully!")
                 else:
                     st.error("❌ Failed to extract text from resume")
             
@@ -366,8 +364,7 @@ with tab1:
         # Auto-process text input
         if jd_text_input and jd_text_input != st.session_state.job_text:
             st.session_state.job_text = jd_text_input
-            st.success("✅ Job description text updated!")
-            st.info(f"📝 **Word count:** {len(jd_text_input.split())} words")
+            st.success("✅ Job description updated!")
         
         # Show current job description text
         if st.session_state.job_text:
