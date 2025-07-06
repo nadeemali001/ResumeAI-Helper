@@ -210,12 +210,39 @@ def generate_cover_letter(resume_text: str, jd_text: str, tone: str = "formal", 
         # TODO: Implement Google Gemini integration
         # This is a placeholder that will be replaced with actual Gemini API calls
         
-        # For now, return a template cover letter
-        cover_letter = f"""Dear Hiring Manager,
+        # Extract key information from job description
+        jd_lines = jd_text.split('\n')
+        company_name = "the company"
+        position_title = "the position"
+        
+        # Try to extract company and position info
+        for line in jd_lines[:10]:  # Check first 10 lines
+            line_lower = line.lower()
+            if 'company' in line_lower or 'organization' in line_lower:
+                company_name = line.strip()
+            if 'position' in line_lower or 'role' in line_lower or 'job' in line_lower:
+                position_title = line.strip()
+        
+        # Generate tone-specific content
+        if tone == "formal":
+            opening = f"I am writing to express my sincere interest in {position_title} at {company_name}."
+            confidence = "I am confident that my qualifications and experience align well with your requirements."
+            enthusiasm = "I am excited about the opportunity to contribute to your organization."
+        elif tone == "confident":
+            opening = f"I am excited to apply for {position_title} at {company_name}."
+            confidence = "I am confident that my proven track record and skills make me an excellent candidate for this role."
+            enthusiasm = "I am eager to bring my expertise and drive results for your team."
+        else:  # enthusiastic
+            opening = f"I am thrilled to apply for {position_title} at {company_name}!"
+            confidence = "I am confident that my passion and experience make me the perfect fit for this exciting opportunity."
+            enthusiasm = "I am incredibly excited about the possibility of joining your dynamic team!"
+        
+        # Create dynamic cover letter
+        cover_letter = f"""{opening}
 
-I am writing to express my interest in the position at your company. Based on my review of the job description and my professional background, I believe I would be a valuable addition to your team.
+{confidence} Based on my review of the job description and my professional background, I believe I would be a valuable addition to your team.
 
-My experience aligns well with the requirements you've outlined, and I am confident that my skills and background would make me a strong candidate for this role. I have demonstrated success in similar positions and am excited about the opportunity to contribute to your organization.
+My experience includes relevant skills and achievements that directly align with the requirements you've outlined. {enthusiasm}
 
 I am particularly drawn to this opportunity because of the company's reputation for innovation and excellence. I am eager to bring my expertise to your team and help drive continued success.
 

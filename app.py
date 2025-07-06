@@ -1,12 +1,13 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import plotly.graph_objects as go
 from utils import extract_text_from_file, get_file_info, validate_file_type, analyze_resume_vs_jd, analyze_ats_score, generate_cover_letter
 
 # Set page config
 st.set_page_config(
-    page_title="ResumeAI Helper",
-    page_icon="📄",
+    page_title="myAIHr - AI-Powered Resume Analysis",
+    page_icon="🤖",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -51,6 +52,32 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Helper functions for session state management
+def create_gauge_chart(value, title, color="blue"):
+    """Create a gauge chart for displaying scores."""
+    fig = go.Figure(go.Indicator(
+        mode = "gauge+number+delta",
+        value = value,
+        domain = {'x': [0, 1], 'y': [0, 1]},
+        title = {'text': title},
+        delta = {'reference': 50},
+        gauge = {
+            'axis': {'range': [None, 100]},
+            'bar': {'color': color},
+            'steps': [
+                {'range': [0, 30], 'color': "lightgray"},
+                {'range': [30, 70], 'color': "gray"},
+                {'range': [70, 100], 'color': "lightgray"}
+            ],
+            'threshold': {
+                'line': {'color': "red", 'width': 4},
+                'thickness': 0.75,
+                'value': 90
+            }
+        }
+    ))
+    fig.update_layout(height=300, margin=dict(l=20, r=20, t=40, b=20))
+    return fig
+
 def save_analysis_to_history(resume_text, job_text, analysis_results, model_used):
     """Save analysis results to session state history."""
     import datetime
@@ -105,7 +132,7 @@ if 'current_analysis_id' not in st.session_state:
 with st.sidebar:
     st.markdown("""
     <div style="text-align: center; padding: 1rem 0;">
-        <h1 style="font-size: 1.8rem; color: #1f77b4; margin-bottom: 0.5rem;">📄 ResumeAI Helper</h1>
+        <h1 style="font-size: 1.8rem; color: #1f77b4; margin-bottom: 0.5rem;">🤖 myAIHr</h1>
         <p style="color: #6c757d; font-size: 0.9rem;">AI-Powered Resume Analysis with Google Gemini</p>
     </div>
     """, unsafe_allow_html=True)
@@ -114,16 +141,17 @@ with st.sidebar:
     
     st.markdown("### 🚀 How to Use")
     st.markdown("""
-    1. **Upload** your resume and job description
-    2. **Extract** text from uploaded files
-    3. **Analyze** with Google Gemini AI
-    4. **Generate** a cover letter
+    1. **Upload** your resume (PDF/DOCX/TXT)
+    2. **Enter** job description text
+    3. **Analyze** with AI for insights
+    4. **Generate** personalized cover letter
+    5. **Optimize** for ATS systems
     """)
     
     st.divider()
     
     # Google Gemini Settings
-    st.markdown("### 🤖 Google Gemini Settings")
+    st.markdown("### 🤖 AI Settings")
     
     # Google Gemini API Key
     gemini_api_key = st.text_input(
@@ -132,11 +160,6 @@ with st.sidebar:
         help="Get your API key from https://makersuite.google.com/app/apikey",
         placeholder="AIza..."
     )
-    
-    if gemini_api_key:
-        st.success("✅ Google Gemini API key provided")
-    else:
-        st.warning("⚠️ Please provide your Google Gemini API key to use AI features")
     
     st.divider()
     
@@ -212,13 +235,13 @@ with st.sidebar:
     # App Info
     st.markdown("### ℹ️ About")
     st.markdown("""
-    **ResumeAI Helper** uses Google Gemini AI to analyze resumes against job descriptions and generate personalized cover letters.
+    **myAIHr** uses Google Gemini AI to analyze resumes against job descriptions and generate personalized cover letters.
     
     Built with Streamlit and Google Gemini.
     """)
 
 # Main content
-st.markdown('<h1 class="main-header">📄 ResumeAI Helper</h1>', unsafe_allow_html=True)
+st.markdown('<h1 class="main-header">🤖 myAIHr</h1>', unsafe_allow_html=True)
 
 # Current analysis indicator
 if st.session_state.current_analysis_id:
@@ -250,16 +273,15 @@ with tab1:
             st.info(f"📊 **File size:** {file_info['size']:,} bytes")
             
             # Auto-extract text on upload
-            if st.button("🔍 Extract Text", use_container_width=True, type="primary"):
-                with st.spinner("Extracting text from resume..."):
-                    extracted_text = extract_text_from_file(resume_file)
-                    if extracted_text:
-                        st.session_state.resume_text = extracted_text
-                        st.success("✅ Text extracted successfully!")
-                        st.info(f"📝 **Word count:** {len(extracted_text.split())} words")
-                        st.info(f"📏 **Character count:** {len(extracted_text)} characters")
-                    else:
-                        st.error("❌ Failed to extract text from resume")
+            with st.spinner("🔍 Extracting text from resume..."):
+                extracted_text = extract_text_from_file(resume_file)
+                if extracted_text:
+                    st.session_state.resume_text = extracted_text
+                    st.success("✅ Text extracted automatically!")
+                    st.info(f"📝 **Word count:** {len(extracted_text.split())} words")
+                    st.info(f"📏 **Character count:** {len(extracted_text)} characters")
+                else:
+                    st.error("❌ Failed to extract text from resume")
             
             # Show extracted text in expander
             if st.session_state.resume_text:
@@ -276,36 +298,13 @@ with tab1:
     with col2:
         st.markdown("### 💼 Job Description")
         
-        # Option to upload job description file
-        jd_file = st.file_uploader(
-            "Upload job description (optional)",
-            type=['pdf', 'docx', 'txt'],
-            help="Upload a job description file, or enter text below"
-        )
-        
-        if jd_file:
-            file_info = get_file_info(jd_file)
-            st.success(f"✅ **{file_info['name']}** uploaded successfully!")
-            st.info(f"📊 **File size:** {file_info['size']:,} bytes")
-            
-            # Auto-extract text on upload
-            if st.button("🔍 Extract Text from File", use_container_width=True, type="primary"):
-                with st.spinner("Extracting text from job description..."):
-                    extracted_text = extract_text_from_file(jd_file)
-                    if extracted_text:
-                        st.session_state.job_text = extracted_text
-                        st.success("✅ Text extracted successfully!")
-                        st.info(f"📝 **Word count:** {len(extracted_text.split())} words")
-                        st.info(f"📏 **Character count:** {len(extracted_text)} characters")
-                    else:
-                        st.error("❌ Failed to extract text from job description")
-        
         # Text input for job description
         jd_text_input = st.text_area(
-            "Or enter job description text directly",
+            "Enter job description text",
             height=200,
             placeholder="Paste the job description here...",
-            help="Enter the job description text directly or upload a file above"
+            help="Enter the complete job description text",
+            value=st.session_state.job_text if st.session_state.job_text else ""
         )
         
         # Auto-process text input
@@ -579,7 +578,7 @@ with tab2:
         
         with col1:
             # Create text report
-            report_text = f"""ResumeAI Helper - AI Analysis Report
+            report_text = f"""myAIHr - AI Analysis Report
 Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
 OVERALL ASSESSMENT
@@ -618,7 +617,7 @@ FORMATTING ISSUES
         
         with col2:
             # Create markdown report
-            report_md = f"""# ResumeAI Helper - AI Analysis Report
+            report_md = f"""# myAIHr - AI Analysis Report
 *Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*
 
 ## Overall Assessment
@@ -665,44 +664,41 @@ with tab3:
             gemini_api_key
         )
         
-        # Display ATS metrics
-        col1, col2, col3, col4 = st.columns(4)
+        # Display ATS metrics with premium gauge charts
+        st.markdown("### 🎯 ATS Score Dashboard")
+        
+        # Main ATS Score Gauge
+        ats_score = ats_results.get('ats_score', 0)
+        ats_color = "green" if ats_score >= 80 else "orange" if ats_score >= 60 else "red"
+        
+        col1, col2 = st.columns([2, 1])
         
         with col1:
-            ats_score = ats_results.get('ats_score', 0)
-            st.metric(
-                label="🎯 Overall ATS Score",
-                value=f"{ats_score}%",
-                delta=f"{ats_score - 50}%" if ats_score > 50 else f"{ats_score - 50}%"
-            )
-            st.progress(ats_score / 100, text=f"ATS Progress: {ats_score}%")
+            ats_gauge = create_gauge_chart(ats_score, "Overall ATS Score", ats_color)
+            st.plotly_chart(ats_gauge, use_container_width=True)
         
         with col2:
+            st.markdown("### 📊 Score Breakdown")
+            
+            # Individual scores
             keyword_match = ats_results.get('keyword_match_score', 0)
-            st.metric(
-                label="🔑 Keyword Match",
-                value=f"{keyword_match}%",
-                delta=f"{keyword_match - 50}%" if keyword_match > 50 else f"{keyword_match - 50}%"
-            )
-            st.progress(keyword_match / 100, text=f"Keyword Progress: {keyword_match}%")
-        
-        with col3:
             formatting_score = ats_results.get('formatting_score', 0)
-            st.metric(
-                label="📝 Formatting Score",
-                value=f"{formatting_score}%",
-                delta=f"{formatting_score - 50}%" if formatting_score > 50 else f"{formatting_score - 50}%"
-            )
-            st.progress(formatting_score / 100, text=f"Formatting Progress: {formatting_score}%")
-        
-        with col4:
             content_score = ats_results.get('content_score', 0)
-            st.metric(
-                label="📄 Content Score",
-                value=f"{content_score}%",
-                delta=f"{content_score - 50}%" if content_score > 50 else f"{content_score - 50}%"
-            )
-            st.progress(content_score / 100, text=f"Content Progress: {content_score}%")
+            
+            st.metric("🔑 Keyword Match", f"{keyword_match}%")
+            st.metric("📝 Formatting", f"{formatting_score}%")
+            st.metric("📄 Content", f"{content_score}%")
+            
+            # Overall assessment
+            if ats_score >= 80:
+                st.success("🎉 **Excellent ATS Compatibility**")
+                st.info("Your resume should pass most ATS systems!")
+            elif ats_score >= 60:
+                st.warning("⚠️ **Good ATS Compatibility**")
+                st.info("Some improvements recommended for better results.")
+            else:
+                st.error("❌ **Poor ATS Compatibility**")
+                st.info("Significant improvements needed to pass ATS screening.")
         
         st.divider()
         
@@ -783,7 +779,7 @@ with tab3:
         
         with col1:
             # Create ATS text report
-            ats_report_text = f"""ResumeAI Helper - ATS Optimization Report
+            ats_report_text = f"""myAIHr - ATS Optimization Report
 Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
 ATS SCORES
@@ -832,7 +828,7 @@ STRUCTURE RECOMMENDATIONS
         
         with col2:
             # Create ATS markdown report
-            ats_report_md = f"""# ResumeAI Helper - ATS Optimization Report
+            ats_report_md = f"""# myAIHr - ATS Optimization Report
 *Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*
 
 ## ATS Scores
@@ -975,4 +971,4 @@ with tab4:
 
 # Footer
 st.divider()
-st.caption("Built with ❤️ using Streamlit, Google Gemini • ResumeAI Helper") 
+st.caption("Built with ❤️ using Streamlit, Google Gemini • myAIHr") 
