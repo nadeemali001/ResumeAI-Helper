@@ -64,17 +64,22 @@ def get_hf_client(api_token: Optional[str] = None) -> Optional[Any]:
         except Exception as auth_error:
             error_msg = str(auth_error)
             if "401" in error_msg or "Unauthorized" in error_msg:
-                st.error("❌ 401 Unauthorized: Invalid Hugging Face API token. Please check your token and try again.")
-                st.info("💡 Get a new token from: https://huggingface.co/settings/tokens")
+                st.error("❌ 401 Unauthorized: Invalid Hugging Face API token.")
+                st.warning("🚨 **WIDESPREAD ISSUE:** This is a known problem affecting many users since June 2025.")
+                st.info("💡 **Solutions:**")
+                st.info("• Switch to Ollama (local) - Most reliable option")
+                st.info("• Get a new token from: https://huggingface.co/settings/tokens")
+                st.info("• Check [Hugging Face status](https://status.huggingface.co)")
+                st.info("• Visit [community forum](https://discuss.huggingface.co) for updates")
             elif "403" in error_msg or "Forbidden" in error_msg:
                 st.error("❌ 403 Forbidden: Your token doesn't have the required permissions.")
                 st.info("💡 Make sure your token has 'read' permissions for inference.")
             elif "404" in error_msg or "Not Found" in error_msg:
                 st.error("❌ 404 Not Found: Model not available or API endpoint issue.")
-                st.warning("⚠️ This is a known issue affecting many users recently.")
+                st.warning("🚨 **WIDESPREAD ISSUE:** This is a known problem affecting many users recently.")
                 st.info("💡 **Temporary Solutions:**")
+                st.info("• Switch to Ollama (local) - Most reliable option")
                 st.info("• Try different models (some models still work)")
-                st.info("• Use Ollama (local) instead of Hugging Face")
                 st.info("• Check [Hugging Face status](https://status.huggingface.co)")
                 st.info("• Visit [community forum](https://discuss.huggingface.co) for updates")
             elif "429" in error_msg or "Rate limit" in error_msg:
@@ -85,14 +90,18 @@ def get_hf_client(api_token: Optional[str] = None) -> Optional[Any]:
                 st.info("💡 Please try again later.")
             else:
                 st.error(f"❌ Hugging Face API error: {error_msg}")
+                st.info("💡 This may be part of the widespread Hugging Face API issues.")
+                st.info("💡 Consider switching to Ollama (local) for more reliable results.")
             return None
             
     except Exception as e:
         st.error(f"❌ Error initializing Hugging Face client: {str(e)}")
-        st.info("💡 Common solutions:")
+        st.warning("🚨 **WIDESPREAD ISSUE:** Hugging Face API is experiencing problems affecting many users.")
+        st.info("💡 **Recommended Solutions:**")
+        st.info("• Switch to Ollama (local) - Most reliable option")
         st.info("• Check your internet connection")
         st.info("• Verify your API token is correct")
-        st.info("• Ensure your token has the right permissions")
+        st.info("• Check [Hugging Face status](https://status.huggingface.co)")
         return None
 
 

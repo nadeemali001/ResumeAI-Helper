@@ -558,6 +558,12 @@ with tab1:
         if st.session_state.resume_text and st.session_state.job_text:
             try:
                 with st.spinner("🤖 Analyzing resume against job description..."):
+                    # Check if using Hugging Face and if token is provided
+                    if use_hf and not hf_token:
+                        st.error("❌ Hugging Face API token is required for cloud analysis.")
+                        st.info("💡 Please enter your Hugging Face API token in the sidebar, or switch to Ollama (local) mode.")
+                        st.stop()
+                    
                     analysis_results = analyze_resume_vs_jd(
                         st.session_state.resume_text, 
                         st.session_state.job_text, 
@@ -579,11 +585,35 @@ with tab1:
                 st.info("💾 Analysis saved to history. You can view it in the sidebar.")
                 
             except Exception as e:
-                st.error(f"❌ Analysis failed: {str(e)}")
-                st.info("💡 Troubleshooting tips:")
-                st.info("• Make sure Ollama is running (`ollama serve`)")
-                st.info("• Check that the selected model is available (`ollama list`)")
-                st.info("• Try selecting a different model from the sidebar")
+                error_msg = str(e)
+                st.error(f"❌ Analysis failed: {error_msg}")
+                
+                # Provide specific troubleshooting based on the error
+                if "Hugging Face client not available" in error_msg or "401" in error_msg or "404" in error_msg:
+                    st.error("🚨 **Hugging Face API Issues Detected**")
+                    st.markdown("""
+                    **This is a known widespread issue affecting many users.**
+                    
+                    **Immediate Solutions:**
+                    1. **Switch to Ollama (Local)** - Most reliable option
+                    2. **Check your token** - Must start with `hf_` and have read permissions
+                    3. **Try different models** - Some models may still work
+                    4. **Wait and retry** - Service may be temporarily unavailable
+                    
+                    **For more help:**
+                    - [Hugging Face Status](https://status.huggingface.co)
+                    - [Community Forum](https://discuss.huggingface.co)
+                    """)
+                else:
+                    st.info("💡 **General Troubleshooting:**")
+                    if use_hf:
+                        st.info("• Check your Hugging Face API token")
+                        st.info("• Verify token has 'read' permissions")
+                        st.info("• Try switching to Ollama (local) mode")
+                    else:
+                        st.info("• Make sure Ollama is running (`ollama serve`)")
+                        st.info("• Check that the selected model is available (`ollama list`)")
+                        st.info("• Try selecting a different model from the sidebar")
         else:
             st.error("❌ Please ensure both resume and job description texts are available for analysis.")
 
