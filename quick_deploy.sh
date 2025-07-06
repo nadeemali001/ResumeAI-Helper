@@ -61,12 +61,12 @@ git commit -m "Initial deployment of ResumeAI-Helper"
 
 # Add remote
 echo "🔗 Adding Hugging Face remote..."
-git remote add origin "https://huggingface.co/spaces/$USERNAME/$SPACE_NAME"
+git remote set-url origin https://<user_name>:<token>@huggingface.co/spaces/Nadeemali001/ResumeAI.git
 
 # Push to Hugging Face
 echo "🚀 Pushing to Hugging Face..."
 echo "You may be prompted for your Hugging Face credentials..."
-git push -u origin main
+git push origin main
 
 echo ""
 echo "🎉 Deployment completed!"
@@ -82,4 +82,6 @@ echo "4. Test your app!"
 echo ""
 echo "🔧 To update your app later:"
 echo "cd $DEPLOY_DIR"
-echo "git add . && git commit -m 'Update' && git push" 
+echo "git add . && git commit -m 'Update' && git push"
+
+huggingface-cli login 
