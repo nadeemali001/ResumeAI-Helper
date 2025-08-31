@@ -206,7 +206,12 @@ with st.sidebar:
     st.markdown("### 🤖 AI Settings")
     
     # Get API key from environment variable
-    gemini_api_key = os.getenv('GEMINI_API_KEY')
+    # Let user enter API key directly
+    gemini_api_key = st.text_input(
+    "Enter your Google Gemini API Key:",
+    type="password",
+    placeholder="Paste your API key here..."
+        )
     
     if gemini_api_key:
         st.success("✅ Google Gemini API key loaded from environment")
@@ -386,6 +391,7 @@ with tab1:
     if not gemini_api_key:
         st.error("❌ Google Gemini API key is required for AI analysis.")
         st.info("💡 Please enter your API key in the sidebar to continue.")
+        st.markdown("Add Your Gemini API Key:")
         analyze_button = False
     else:
         analyze_button = st.button("🚀 Analyze Resume vs Job Description", use_container_width=True, type="primary")
