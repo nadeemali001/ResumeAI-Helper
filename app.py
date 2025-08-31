@@ -218,9 +218,8 @@ with st.sidebar:
         st.info("🔒 API key is securely configured")
     else:
         st.error("❌ Google Gemini API key not found in environment")
-        st.info("💡 Set GEMINI_API_KEY environment variable to use AI features")
-        st.markdown("**To set the API key:**")
-        st.code("export GEMINI_API_KEY='your_api_key_here'")
+        st.markdown("**To get your API key from Gemini:**")
+        st.code("https://aistudio.google.com/apikey")
     
     st.divider()
     
